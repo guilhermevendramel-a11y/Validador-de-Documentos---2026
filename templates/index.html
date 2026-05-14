@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>MSE ENGENHARIA – Validador Gestão Documental</title>
+
+    <link rel="icon" href="/static/img/logo-mse.png">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+
+<body>
+
+    <header class="main-header">
+        <img src="/static/img/logo-mse.png" height="30" alt="MSE Engenharia">
+        <strong>MSE ENGENHARIA – Validador Gestão Documental</strong>
+    </header>
+
+    <div class="container">
+
+        <div class="card">
+            {% include "partials/cartao_ponto.html" %}
+        </div>
+
+        <div class="card">
+            {% include "partials/fgts.html" %}
+        </div>
+
+        <div class="card">
+            {% include "partials/inss.html" %}
+        </div>
+
+        <div class="card">
+            {% include "partials/folha_pagamento.html" %}
+        </div>
+
+        <div class="card">
+            {% include "partials/holerite.html" %}
+        </div>
+
+        <div class="card">
+            {% include "partials/rescisao.html" %}
+        </div>
+
+        <div class="card">
+            {% include "partials/certidoes.html" %}
+        </div>
+
+        <div id="secao-vt">
+            {% include 'partials/vale_transporte.html' %}
+        </div>
+
+        <div id="secao-va">
+             {% include 'partials/vale_alimentacao.html' %}
+        </div>
+
+        <div class="card">
+            {% include "partials/seguro_vida.html" %}
+        </div>
+
+    </div>
+
+</body>
+</html>

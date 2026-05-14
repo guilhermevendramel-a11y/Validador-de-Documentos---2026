@@ -1,0 +1,82 @@
+<div class="card">
+    <h3>📄 Kit Rescisão Unificado (TRCT, FGTS, ASO e Ponto)</h3>
+
+    <form id="formKitRescisaoMSE" enctype="multipart/form-data">
+        <div style="margin-bottom: 12px;">
+            <label>Colaborador (Nome Completo):</label>
+            <input type="text" name="nome_colaborador" placeholder="Digite o nome completo" required>
+        </div>
+
+        <div style="margin-bottom: 12px;">
+            <label>Upload do Kit Completo (PDF Único):</label>
+            <input type="file" name="kit_unico" required>
+            <small style="display:block; color:#666; margin-top:5px;">
+                O PDF deve conter: TRCT, Comprovantes, GFD, ASO, Aviso e Ponto.
+            </small>
+        </div>
+
+        <button class="btn" type="submit" style="width: 100%;">Validar Kit Unificado</button>
+    </form>
+
+    <div id="resultadoKitRescisao" class="resultado" style="display:none; margin-top: 15px;"></div>
+</div>
+
+<script>
+(function() {
+    const form = document.getElementById("formKitRescisaoMSE");
+    const box = document.getElementById("resultadoKitRescisao");
+
+    if (form) {
+        form.addEventListener("submit", async function(e) {
+            e.preventDefault();
+            box.style.display = "block";
+            box.className = "resultado";
+            box.innerHTML = "⏳ <strong>Analisando Kit Unificado...</strong> Varrendo documentos e cruzando valores.";
+
+            try {
+                const formData = new FormData(this);
+                const resp = await fetch("/validar_kit_rescisao", { method: "POST", body: formData });
+                
+                if (!resp.ok) throw new Error("Erro na comunicação com o servidor");
+                
+                const data = await resp.json();
+
+                // Aplica o estilo de status (verde/vermelho) baseado no style.css
+                box.className = "resultado " + (data.status === "Aprovado" ? "status-ok" : "status-erro");
+
+                let html = `
+                    <div style="padding: 10px; border-bottom: 1px solid #eee; margin-bottom: 10px;">
+                        <strong>Status Geral:</strong> ${data.status}<br>
+                        <strong>Mensagem:</strong> ${data.mensagem}
+                    </div>
+                    <table class="tabela-resultado">
+                        <thead>
+                            <tr>
+                                <th style="text-align:left;">Item Validado</th>
+                                <th style="text-align:center;">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
+
+                // Renderiza dinamicamente as validações enviadas pelo validator.py
+                data.validacoes.forEach(v => {
+                    html += `
+                        <tr>
+                            <td style="font-weight:500; padding: 8px;">${v.item}</td>
+                            <td style="text-align:center; padding: 8px;" class="${v.ok ? 'text-sucesso' : 'text-alerta'}">
+                                ${v.ok ? '✔️ OK' : '❌ Pendente'}
+                            </td>
+                        </tr>`;
+                });
+
+                html += `</tbody></table>`;
+                box.innerHTML = html;
+            } catch (err) { 
+                console.error(err);
+                box.className = "resultado status-erro";
+                box.innerHTML = "❌ Erro técnico ao processar o arquivo único."; 
+            }
+        });
+    }
+})();
+</script>

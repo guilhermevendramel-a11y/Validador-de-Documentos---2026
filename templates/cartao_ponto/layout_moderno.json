@@ -1,0 +1,32 @@
+{
+  "tipo": "cartao_ponto",
+  "layout": "moderno",
+
+  "identificacao": {
+    "palavras_chave": [
+      "EMPREGADO",
+      "CPF",
+      "CTPS",
+      "JORNADA",
+      "HORAS TRABALHADAS"
+    ]
+  },
+
+  "campos": {
+    "nome": {
+      "regex": "\\b([A-ZÁÉÍÓÚÂÊÔÃÕÇ]{3,}(?:\\s+[A-ZÁÉÍÓÚÂÊÔÃÕÇ]{2,}){1,})\\b"
+    },
+    "cpf": {
+      "regex": "(\\d{3}\\.\\d{3}\\.\\d{3}-\\d{2})"
+    },
+    "competencia": {
+      "regex": "(JANEIRO|FEVEREIRO|MARCO|ABRIL|MAIO|JUNHO|JULHO|AGOSTO|SETEMBRO|OUTUBRO|NOVEMBRO|DEZEMBRO)\\s+(\\d{4})"
+    }
+  },
+
+  "assinatura": {
+    "tipo": "imagem",
+    "regiao": "bottom",
+    "percentual_area": 0.35
+  }
+}

@@ -1,0 +1,73 @@
+<div class="card p-4 shadow-sm border-danger mb-4">
+    <h4 class="mb-3" style="color: #8b0000;"><i class="fas fa-bus"></i> GESTÃO DE VALE TRANSPORTE (VT)</h4>
+    <div class="row g-3">
+        <div class="col-12">
+            <label class="form-label fw-bold">Arquivos VT (Termos, Relação e Comprovante):</label>
+            <input type="file" id="vt_files" class="form-control" multiple accept=".pdf">
+            <small class="text-muted">Nomes e assinaturas serão extraídos automaticamente via IA.</small>
+        </div>
+        <div class="col-12 mt-3">
+            <button class="btn w-100 fw-bold text-white shadow" onclick="validarVT()" style="background-color: #8b0000; border: none; height: 50px;">
+                Iniciar Batimento de VT
+            </button>
+        </div>
+    </div>
+
+    <div id="res_vt" class="mt-4 d-none">
+        <table class="table table-hover border">
+            <thead class="table-dark">
+                <tr>
+                    <th>Colaborador</th>
+                    <th>Status</th>
+                    <th>Evidência Jurídica</th>
+                </tr>
+            </thead>
+            <tbody id="corpo_vt"></tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+async function validarVT() {
+    const filesInput = document.getElementById('vt_files');
+    const corpo = document.getElementById('corpo_vt');
+    const resDiv = document.getElementById('res_vt');
+
+    if (!filesInput || filesInput.files.length === 0) return alert("Selecione os arquivos.");
+
+    const formData = new FormData();
+    for (let file of filesInput.files) { 
+        formData.append('comprovantes', file); 
+    }
+
+    resDiv.classList.remove('d-none');
+    corpo.innerHTML = '<tr><td colspan="3" class="text-center">Processando com IA...</td></tr>';
+
+    try {
+        const resp = await fetch('/validar_vt', { method: 'POST', body: formData });
+        const data = await resp.json();
+
+        corpo.innerHTML = "";
+        data.validacoes.forEach(v => {
+            corpo.innerHTML += `
+                <tr>
+                    <td class="fw-bold">${v.colaborador}</td>
+                    <td>
+                        <span class="badge ${
+                            v.status === 'OK' ? 'bg-success' :
+                            v.status === 'NAO OPTANTE' ? 'bg-primary' :
+                            v.status === 'PENDENTE' ? 'bg-warning text-dark' :
+                        'bg-secondary'
+                    }">
+                        ${v.status}
+                    </span>
+                </td>
+                    <td><small>${v.detalhe}</small></td>
+                </tr>`;
+        });
+    } catch (e) {
+        console.error(e);
+        corpo.innerHTML = '<tr><td colspan="3" class="text-danger">Erro no processamento da IA.</td></tr>';
+    }
+}
+</script>

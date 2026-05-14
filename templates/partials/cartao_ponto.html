@@ -1,0 +1,129 @@
+<div class="card">
+    <h3>📄 Validar Cartão Ponto</h3>
+
+    <form id="formPontoMSE" enctype="multipart/form-data">
+
+        <!-- 🔥 NOVO CAMPO -->
+        <input 
+            type="text" 
+            name="competencia" 
+            placeholder="Competência (MM/AAAA)" 
+            required
+            style="margin-bottom: 10px; width:100%; padding:8px;"
+        >
+
+        <input type="file" name="file" required>
+
+        <button class="btn" type="submit" style="width: 100%; margin-top: 10px;">
+            Validar
+        </button>
+    </form>
+
+    <div id="resultadoPontoMSE" style="display:none; margin-top: 15px;"></div>
+</div>
+
+<script>
+(function() {
+    const form = document.getElementById("formPontoMSE");
+    const box = document.getElementById("resultadoPontoMSE");
+
+    if (!form) return;
+
+    form.addEventListener("submit", async function(e) {
+        e.preventDefault();
+
+        box.style.display = "block";
+        box.className = "resultado";
+        box.innerHTML = "⏳ Processando OCR do Cartão Ponto...";
+
+        try {
+            const formData = new FormData(this);
+
+            const resp = await fetch("/validar_cartao_ponto", {
+                method: "POST",
+                body: formData
+            });
+
+            if (!resp.ok) throw new Error("Erro na comunicação com o servidor");
+
+            const data = await resp.json();
+
+            console.log("📦 RESPOSTA BACKEND:", data);
+
+            let statusClass = "status-erro";
+            if (data.status === "Aprovado") statusClass = "status-ok";
+            else if (data.status === "Parcial") statusClass = "status-alert";
+
+            box.className = "resultado " + statusClass;
+
+            let html = `
+                <div style="padding: 10px; border-bottom: 1px solid #ddd; margin-bottom: 10px;">
+                    <strong>Status:</strong> ${data.status || "-"}<br>
+                    <strong>Mensagem:</strong> ${data.mensagem || "-"}<br>
+                </div>
+            `;
+
+            if (data.colaboradores && data.colaboradores.length > 0) {
+
+                html += `
+                <table class="tabela-resultado" style="width:100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background: #f8f9fa;">
+                            <th style="padding: 8px; text-align:left;">Colaborador</th>
+                            <th style="padding: 8px; text-align:center;">Competência</th>
+                            <th style="padding: 8px; text-align:center;">Competência OK</th>
+                            <th style="padding: 8px; text-align:center;">Assinatura</th>
+                            <th style="padding: 8px; text-align:center;">Marcações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                `;
+
+                data.colaboradores.forEach(col => {
+                    html += `
+                        <tr>
+                            <td style="padding: 8px; font-weight:bold; color:#8b0000;">
+                                ${col.nome || "-"}
+                            </td>
+
+                            <td style="padding: 8px; text-align:center;">
+                                ${col.competencia || "-"}
+                            </td>
+
+                            <!-- 🔥 NOVA COLUNA -->
+                            <td style="padding: 8px; text-align:center;">
+                                ${col.competencia_ok ? "✔️ OK" : "❌ Divergente"}
+                            </td>
+
+                            <td style="padding: 8px; text-align:center;">
+                                ${col.assinatura ? "✔️ OK" : "❌"}
+                            </td>
+
+                            <td style="padding: 8px; text-align:center;">
+                                ${col.marcacoes ? "✔️ OK" : "❌"}
+                            </td>
+                        </tr>
+                    `;
+                });
+
+                html += `
+                    </tbody>
+                </table>
+                `;
+
+            } else {
+                html += `<p style="padding: 10px;">Nenhum dado encontrado no documento.</p>`;
+            }
+
+            box.innerHTML = html;
+
+        } catch (err) {
+            console.error("❌ ERRO:", err);
+
+            box.className = "resultado status-erro";
+            box.innerHTML = "❌ Erro ao processar o Cartão Ponto. Tente novamente.";
+        }
+    });
+
+})();
+</script>

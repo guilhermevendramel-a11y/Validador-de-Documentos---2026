@@ -1,0 +1,134 @@
+<div class="card p-4 shadow-sm border-primary">
+    <h4 class="mb-3 text-primary">
+        <i class="fas fa-file-invoice-dollar"></i> 04 - FOLHA DE PAGAMENTO
+    </h4>
+    
+    <div class="row g-3">
+        <div class="col-md-6">
+            <label class="form-label fw-bold">Competência (MM/AAAA):</label>
+            <input type="text" id="comp_folha" class="form-control" placeholder="Ex: 01/2026">
+        </div>
+
+        <div class="col-md-6">
+            <label class="form-label fw-bold">Arquivo da Folha (PDF):</label>
+            <input type="file" id="file_folha" class="form-control" accept=".pdf">
+        </div>
+
+        <div class="col-12">
+            <button class="btn btn-primary w-100 fw-bold" onclick="validarFolha()">
+                VALIDAR FOLHA DE PAGAMENTO
+            </button>
+        </div>
+    </div>
+
+    <div id="res_folha" class="mt-4 d-none"></div>
+</div>
+
+ <script>
+async function validarFolha() {
+    const file = document.getElementById('file_folha').files[0];
+    const comp = document.getElementById('comp_folha').value;
+
+    if (!file || !comp) {
+        alert("Preencha a competência e anexe a Folha.");
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('competencia', comp);
+
+    const resDiv = document.getElementById('res_folha');
+
+    resDiv.classList.remove('d-none');
+    resDiv.innerHTML = "⏳ Processando folha...";
+
+    try {
+        const resp = await fetch("/validar_folha_pagamento", {
+            method: "POST",
+            body: formData
+        });
+
+        const data = await resp.json();
+
+        console.log("📦 FOLHA:", data);
+
+        let statusClass = "text-danger";
+        if (data.status === "Aprovado") statusClass = "text-success";
+        if (data.status === "Parcial") statusClass = "text-warning";
+
+        let html = `
+            <div class="alert border">
+                <h4 class="${statusClass} fw-bold">${data.status}</h4>
+                <p><strong>Mensagem:</strong> ${data.mensagem || "-"}</p>
+            </div>
+        `;
+
+        // 🔥 TABELA PRINCIPAL
+        html += `
+        <table class="table table-bordered mt-3">
+            <thead class="table-light">
+                <tr>
+                    <th>Item</th>
+                    <th>Valor</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Empresa</strong></td>
+                    <td>${data.empresa || "-"}</td>
+                    <td>${data.empresa ? "✔️ OK" : "❌"}</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Competência</strong></td>
+                    <td>${data.competencia || "-"}</td>
+                    <td>${data.competencia_ok ? "✔️ OK" : "❌ Divergente"}</td>
+                </tr>
+            </tbody>
+        </table>
+        `;
+
+        // 🔥 LISTA DE COLABORADORES
+        if (data.colaboradores && data.colaboradores.length > 0) {
+
+            html += `
+            <h5 class="mt-4">👥 Colaboradores</h5>
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Nome Completo</th>
+                    </tr>
+                </thead>
+                <tbody>
+            `;
+
+            data.colaboradores.forEach(nome => {
+                html += `<tr><td>${nome}</td></tr>`;
+            });
+
+            html += `</tbody></table>`;
+        }
+
+        // 🔥 ERROS
+        if (data.erros && data.erros.length > 0) {
+            html += `<div class="alert alert-danger mt-3"><strong>Erros:</strong><ul>`;
+            data.erros.forEach(e => html += `<li>${e}</li>`);
+            html += `</ul></div>`;
+        }
+
+        // 🔥 AVISOS
+        if (data.avisos && data.avisos.length > 0) {
+            html += `<div class="alert alert-warning mt-3"><strong>Avisos:</strong><ul>`;
+            data.avisos.forEach(a => html += `<li>${a}</li>`);
+            html += `</ul></div>`;
+        }
+
+        resDiv.innerHTML = html;
+
+    } catch (e) {
+        resDiv.innerHTML = `<div class="alert alert-danger">Erro: ${e.message}</div>`;
+    }
+}
+</script>

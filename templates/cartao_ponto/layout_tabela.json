@@ -1,0 +1,27 @@
+{
+  "identificacao": {
+    "palavras_chave": [
+      "FOLHA DE PONTO",
+      "ENTRADA",
+      "ALMOCO",
+      "SAIDA",
+      "TOTAL HS",
+      "JORNADA",
+      "COMPENSADO"
+    ]
+  },
+  "campos": {
+    "nome": {
+      "regex": "\\b([A-ZÁÉÍÓÚÂÊÔÃÕÇ]{3,}(?:\\s+[A-ZÁÉÍÓÚÂÊÔÃÕÇ]{2,}){1,})\\b"
+    },
+    "competencia": {
+      "regex": "(JANEIRO|FEVEREIRO|MARCO|ABRIL|MAIO|JUNHO|JULHO|AGOSTO|SETEMBRO|OUTUBRO|NOVEMBRO|DEZEMBRO)\\s+(\\d{4})"
+    },
+    "empresa": {
+      "regex": "(JM\\s+MONTAGENS\\s+LTDA)"
+    },
+    "cnpj": {
+      "regex": "(\\d{2}\\.\\d{3}\\.\\d{3}/\\d{4}-\\d{2})"
+    }
+  }
+}

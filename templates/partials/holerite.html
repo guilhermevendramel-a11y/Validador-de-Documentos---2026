@@ -1,0 +1,158 @@
+﻿<h3>📄 Validar Holerite + Comprovante</h3>
+
+<form id="formHolerite" enctype="multipart/form-data">
+       <div>
+        <label>Arquivo do Holerite (PDF):</label>
+        <input type="file" name="holerite" required>
+    </div>
+    
+    <div>
+        <label>Comprovante(s) de Pagamento:</label>
+        <input type="file" name="comprovantes" multiple required>
+    </div>
+    
+    <button class="btn" type="submit">Validar Holerite</button>
+</form>
+
+<div id="resultadoHolerite" class="resultado" style="display:none;"></div>
+
+<script>
+document.getElementById("formHolerite").addEventListener("submit", async function(e) {
+    e.preventDefault();
+    const box = document.getElementById("resultadoHolerite");
+
+    box.style.display = "block";
+    box.innerHTML = "<div class='loading'>⏳ Processando OCR, IA e Cruzamento de Dados...</div>";
+
+    try {
+        const resp = await fetch("/validar_holerite", {
+            method: "POST",
+            body: new FormData(this)
+        });
+
+        const data = await resp.json();
+
+        if (!resp.ok || data.status === "Erro") {
+            box.innerHTML = `
+                <div class='status-header status-erro'>
+                    <h3>❌ ${data.status || "Erro"}</h3>
+                    <p>${data.mensagem || "Falha inesperada."}</p>
+                </div>
+            `;
+            return;
+        }
+
+        const colaboradores = data.colaboradores || [];
+        const resumo = data.resumo_financeiro || {};
+
+        if (colaboradores.length === 0) {
+            box.innerHTML = `
+                <div class='status-header status-erro'>
+                    <h3>⚠️ Nenhum colaborador identificado</h3>
+                    <p>O documento não apresentou dados suficientes.</p>
+                </div>
+            `;
+            return;
+        }
+
+        box.innerHTML = `
+            <div class="status-header ${data.status === 'Aprovado' ? 'status-ok' : 'status-erro'}">
+                <h3 style="margin:0; font-size: 1.1em;">Status: ${data.status}</h3>
+                <p style="margin:2px 0; font-size: 0.85em;">${data.mensagem}</p>
+                <p style="margin:0; font-size: 0.85em;"><strong>Empresa:</strong> ${data.empresa || 'NÃO IDENTIFICADA'}</p>
+            </div>
+
+            <div style="margin:15px 0; padding:10px; border:1px solid #ddd; border-radius:6px; background:#fafafa;">
+                <strong>Total Líquido:</strong> R$ ${Number(resumo.total_liquido || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2})}
+                &nbsp;&nbsp; | &nbsp;&nbsp;
+                <strong>Total Pago:</strong> R$ ${Number(resumo.total_pago || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2})}
+                &nbsp;&nbsp; | &nbsp;&nbsp;
+                <strong>Diferença Total:</strong> 
+                <span style="color:${Math.abs(resumo.diferenca_total || 0) < 0.01 ? 'green' : 'red'}; font-weight:bold;">
+                    R$ ${Number(resumo.diferenca_total || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2})}
+                </span>
+            </div>
+
+            <div style="overflow-x: auto;">
+                <table class="tabela-resultado">
+                    <thead>
+                        <tr>
+                            <th style="text-align:left;">Colaborador</th>
+                            <th>Comp. Apuração</th>
+                            <th>Assinatura</th>
+                            <th>Valor Líquido</th>
+                            <th>Valor Pago</th>
+                            <th>Diferença</th>
+                            <th>Prazo</th>
+                            <th>Datado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${colaboradores.map(c => `
+                            <tr>
+                                <td style="font-weight:bold; color:#8b0000;">
+                                    ${c.nome || "Não identificado"}
+                                </td>
+
+                                <td style="text-align:center;">
+                                    ${c.competencia || "-"}
+                                </td>
+
+                                <td style="text-align:center;" class="${c.assinatura ? 'text-sucesso' : 'text-alerta'}">
+                                    ${c.assinatura ? '✔️ OK' : '❌ Pendente'}
+                                </td>
+
+                                <td style="text-align:center;">
+                                    R$ ${Number(c.valor_liquido || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2})}
+                                </td>
+
+                                <td style="text-align:center;">
+                                    R$ ${Number(c.valor_pago || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2})}
+                                </td>
+
+                                <td style="text-align:center; font-weight:bold; color:${Math.abs(c.diferenca) < 0.01 ? 'green' : 'red'};">
+                                    R$ ${Number(c.diferenca || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2})}
+                                </td>
+
+                                <td style="text-align:center;" class="${c.prazo_status === 'OK' ? 'text-sucesso' : 'text-alerta'}">
+                                    ${c.prazo === 'OK' ? '✔️ OK' : '❌ Fora'}
+                                </td>
+
+                                <td style="text-align:center;" class="${c.datado === 'Sim' ? 'text-sucesso' : 'text-alerta'}">
+                                    ${c.datado === 'Sim' ? '✔️ OK' : '❌ Não'}
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+
+            <div style="margin-top:12px; padding:10px; border:1px solid #d9e6ff; border-radius:6px; background:#f7fbff;">
+                <h4 style="margin:0 0 8px 0; color:#0b4ea2;">Assinatura e Data (por colaborador)</h4>
+                ${colaboradores.map(c => `
+                    <div style="margin:6px 0; padding:8px; border:1px solid #e6eefc; border-radius:6px; background:#fff;">
+                        <div style="font-weight:600; margin-bottom:4px;">${c.nome || "Nao identificado"}</div>
+                        <div style="font-size:0.9em;">
+                            <strong>Status assinatura:</strong> ${c.assinatura_status || "Nao identificado"}
+                        </div>
+                        <div style="font-size:0.9em;">
+                            <strong>Detalhe:</strong> ${c.assinatura_detalhe || "Nao identificado"}
+                        </div>
+                        <div style="font-size:0.9em;">
+                            <strong>Data manuscrita:</strong> ${c.data_detalhe || "Nao identificada"}
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+
+    } catch (err) {
+        box.innerHTML = `
+            <div class='status-header status-erro'>
+                <h3>❌ Erro Técnico</h3>
+                <p>Falha na comunicação com o servidor.</p>
+            </div>
+        `;
+    }
+});
+</script>

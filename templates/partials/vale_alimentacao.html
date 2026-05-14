@@ -1,0 +1,93 @@
+<div class="card p-4 shadow-sm border-danger mb-4">
+    <h4 class="mb-3" style="color: #8b0000;"><i class="fas fa-utensils"></i> GESTÃO DE VALE ALIMENTAÇÃO (VA)</h4>
+    <div class="row g-3">
+        <div class="col-12">
+            <label class="form-label fw-bold">Arquivos VA (Relação de Pedido, Boleto e Comprovante):</label>
+            <input type="file" id="va_files" class="form-control" multiple accept=".pdf">
+            <small class="text-muted">O sistema identificará automaticamente os colaboradores e os valores recebidos.</small>
+        </div>
+        <div class="col-12 mt-3">
+            <button class="btn w-100 fw-bold text-white shadow" onclick="validarVA()" style="background-color: #8b0000; border: none; height: 50px;">
+                Iniciar Batimento de VA
+            </button>
+        </div>
+    </div>
+    <div id="res_va" class="mt-4 d-none">
+        <div class="row mb-3" id="quadro_va"></div>
+        <table class="table table-hover border">
+            <thead class="table-dark">
+                <tr><th>Colaborador</th><th>Valor</th><th>Status</th><th>Evidência</th></tr>
+            </thead>
+            <tbody id="corpo_va"></tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+async function validarVA() {
+    alert("Iniciando Processamento de VA..."); // Se este alerta não aparecer, o cache ainda é o culpado.
+    console.log("Botão clicado");
+
+    const filesInput = document.getElementById('va_files'); 
+    const corpo = document.getElementById('corpo_va');
+    const quadro = document.getElementById('quadro_va');
+    const resDiv = document.getElementById('res_va');
+
+    if (!filesInput || filesInput.files.length === 0) {
+        alert("Por favor, selecione os arquivos primeiro.");
+        return;
+    }
+
+    if (resDiv) resDiv.classList.remove('d-none');
+    corpo.innerHTML = '<tr><td colspan="4" class="text-center">Enviando arquivos ao servidor...</td></tr>';
+
+    const formData = new FormData();
+    for (let file of filesInput.files) { 
+        formData.append('comprovantes', file); 
+    }
+
+    try {
+        const resp = await fetch('/validar_va', { method: 'POST', body: formData });
+        const data = await resp.json();
+        
+        console.log("Dados recebidos:", data);
+
+        const resumo = data.resumo_financeiro;
+        const valorNf = Number(resumo.valor_nota_fiscal ?? 0);
+        const valorComprovante = Number(resumo.valor_comprovante ?? resumo.total_boleto ?? 0);
+        quadro.innerHTML = `
+            <div class="col-md-4 mb-2">
+                <div class="p-3 border rounded text-center bg-light">
+                    <small class="d-block fw-bold text-muted">SOMA EXTRAÍDA</small>
+                    <span class="h4">R$ ${resumo.soma_colaboradores.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
+                </div>
+            </div>
+            <div class="col-md-4 mb-2">
+                <div class="p-3 border rounded text-center bg-light">
+                    <small class="d-block fw-bold text-muted">VALOR NOTA FISCAL</small>
+                    <span class="h4">R$ ${valorNf.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
+                </div>
+            </div>
+            <div class="col-md-4 mb-2">
+                <div class="p-3 border rounded text-center ${resumo.conferido ? 'bg-success' : 'bg-danger'} text-white">
+                    <small class="d-block fw-bold">VALOR COMPROVANTE</small>
+                    <span class="h4">R$ ${valorComprovante.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
+                </div>
+            </div>`;
+
+        corpo.innerHTML = "";
+        data.validacoes.forEach(v => {
+            corpo.innerHTML += `
+                <tr>
+                    <td class="fw-bold">${v.colaborador}</td>
+                      <td>R$ ${v.valor.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
+                     <td><span class="badge bg-${v.status === 'OK' ? 'success' : 'warning'}">${v.status}</span></td>
+                    <td><small>${v.detalhe}</small></td>
+                </tr>`;
+        });
+    } catch (e) {
+        console.error("Erro no fetch:", e);
+        corpo.innerHTML = '<tr><td colspan="4" class="text-danger text-center">Erro crítico na comunicação. Verifique o console (F12).</td></tr>';
+    }
+}
+</script>

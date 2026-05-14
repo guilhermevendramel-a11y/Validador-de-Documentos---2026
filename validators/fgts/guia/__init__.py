@@ -1,0 +1,1 @@
+from .parser import extrair_dados_guia

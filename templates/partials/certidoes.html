@@ -1,0 +1,115 @@
+<div class="card p-4 shadow-sm">
+    <h4 class="mb-3"><i class="fas fa-file-contract text-primary"></i> Validação Individual de Certidões</h4>
+    
+    <div class="row g-3">
+        <div class="col-md-6">
+            <label class="form-label fw-bold">CNPJ da Empresa:</label>
+            <input type="text" id="cnpj_esperado" class="form-control" placeholder="00.000.000/0000-00" value="">
+        </div>
+        <div class="col-md-6">
+            <label class="form-label fw-bold">Competência de Conferência (MM/AAAA):</label>
+            <input type="text" id="comp_cnd" class="form-control" placeholder="01/2026" value="">
+        </div>
+
+        <hr class="my-4">
+
+        <div class="col-md-4">
+            <label class="form-label fw-bold text-success">1. CND INSS (Federal)</label>
+            <input type="file" id="file_inss" class="form-control" accept=".pdf">
+        </div>
+
+        <div class="col-md-4">
+            <label class="form-label fw-bold text-primary">2. CNDT (Trabalhista)</label>
+            <input type="file" id="file_cndt" class="form-control" accept=".pdf">
+        </div>
+
+        <div class="col-md-4">
+            <label class="form-label fw-bold text-warning">3. CRF (FGTS)</label>
+            <input type="file" id="file_fgts" class="form-control" accept=".pdf">
+        </div>
+
+        <div class="col-12 mt-4">
+            <button class="btn btn-dark w-100 fw-bold" onclick="validarCertidoesSeparadas()">
+                <i class="fas fa-check-double"></i> Validar Certidões Separadas
+            </button>
+        </div>
+    </div>
+
+    <div id="resultado_cnd" class="mt-4 shadow-sm p-3 bg-light rounded d-none">
+        <h5 class="border-bottom pb-2">Status das Certidões</h5>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Documento</th>
+                        <th>CNPJ Extraído</th>
+                        <th>Validade</th>
+                        <th class="text-center">Status</th>
+                    </tr>
+                </thead>
+                <tbody id="tabela_corpo_cnd"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+async function validarCertidoesSeparadas() {
+    const cnpj = document.getElementById('cnpj_esperado').value;
+    const comp = document.getElementById('comp_cnd').value;
+    const resDiv = document.getElementById('resultado_cnd');
+    const corpo = document.getElementById('tabela_corpo_cnd');
+
+    // Mapeamento dos arquivos
+    const files = {
+        "Federal/INSS": document.getElementById('file_inss').files[0],
+        "Trabalhista (CNDT)": document.getElementById('file_cndt').files[0],
+        "FGTS (CRF)": document.getElementById('file_fgts').files[0]
+    };
+
+    const formData = new FormData();
+    formData.append('cnpj_esperado', cnpj);
+    formData.append('competencia', comp);
+
+    // Adiciona apenas os arquivos que foram selecionados
+    Object.entries(files).forEach(([nome, file]) => {
+        if (file) formData.append('cnds', file);
+    });
+
+    if (formData.getAll('cnds').length === 0) {
+        alert("Selecione pelo menos um arquivo.");
+        return;
+    }
+
+    corpo.innerHTML = '<tr><td colspan="4" class="text-center text-primary">Analisando documentos...</td></tr>';
+    resDiv.classList.remove('d-none');
+
+    try {
+        const resp = await fetch("/validar_cnd", { method: "POST", body: formData });
+        
+        if (!resp.ok) throw new Error(`Erro ${resp.status}: Falha na comunicação com o servidor.`);
+
+        const data = await resp.json();
+        corpo.innerHTML = "";
+        
+        data.validacoes.forEach(v => {
+            const icon = v.status === "OK" ? "✅" : "❌";
+            const badge = v.status === "OK" ? "success" : "danger";
+            
+            corpo.innerHTML += `
+                <tr>
+                    <td>${v.item}</td>
+                    <td>${v.cnpj}</td>
+                    <td>${v.validade}</td>
+                    <td class="text-center">
+                        <span class="badge bg-${badge}">${icon} ${v.status}</span>
+                        <br><small class="text-danger">${v.motivo || ''}</small>
+                    </td>
+                </tr>
+            `;
+        });
+    } catch (e) {
+        corpo.innerHTML = `<tr><td colspan="4" class="text-center text-danger">${e.message}</td></tr>`;
+    }
+}
+</script>

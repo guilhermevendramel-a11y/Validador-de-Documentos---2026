@@ -1,0 +1,186 @@
+<div class="card">
+    <h3>📄 Validar INSS (Guia + DCTFWeb)</h3>
+
+    <form id="formINSSMSE" enctype="multipart/form-data">
+        <div style="margin-bottom: 12px;">
+            <label>Competência esperada (MM/AAAA):</label>
+            <input type="text" name="competencia" placeholder="Ex: 10/2025" required>
+        </div>
+
+        <div style="margin-bottom: 12px;">
+            <label>1. Guia + Comprovante de Pagamento (PDF):</label>
+            <input type="file" name="guia_inss" required>
+        </div>
+
+        <div style="margin-bottom: 12px;">
+            <label>2. Relatórios da DCTFWeb (PDF):</label>
+            <input type="file" name="dctfweb" required>
+        </div>
+
+        <button class="btn" type="submit" style="width: 100%;">
+            Validar Documentos INSS
+        </button>
+    </form>
+
+    <div id="resultadoINSSMSE" style="display:none; margin-top: 15px;"></div>
+</div>
+
+<script>
+(function() {
+    const form = document.getElementById("formINSSMSE");
+    const box = document.getElementById("resultadoINSSMSE");
+
+    if (!form) return;
+
+    form.addEventListener("submit", async function(e) {
+        e.preventDefault();
+
+        box.style.display = "block";
+        box.className = "resultado";
+        box.innerHTML = `
+            <div class='loading'>
+                ⏳ <strong>Processando documentos...</strong><br>
+                🔍 OCR + IA + Validação em andamento...
+            </div>
+        `;
+
+        try {
+            const formData = new FormData(form);
+
+            const resp = await fetch("/validar_inss", {
+                method: "POST",
+                body: formData
+            });
+
+            const data = await resp.json();
+            console.log("📊 INSS RESPONSE:", data);
+
+            const erros = data.erros || [];
+            const avisos = data.avisos || [];
+
+            box.className = "resultado " + (
+                data.status === "Aprovado" ? "status-ok" :
+                data.status === "Parcial" ? "status-parcial" :
+                "status-erro"
+            );
+
+            const valorFormatado = (data.valor_inss || data.valor_guia)
+                ? `R$ ${Number(data.valor_inss || data.valor_guia).toFixed(2)}`
+                : "—";
+
+            let html = `
+                <div style="padding: 10px; border-bottom: 1px solid #eee; margin-bottom: 10px;">
+                    <strong>Status:</strong> 
+                    <span class="${
+                        data.status === "Aprovado" ? "text-sucesso" :
+                        data.status === "Parcial" ? "text-alerta" :
+                        "text-erro"
+                    }">
+                        ${data.status}
+                    </span><br>
+
+                    <strong>Mensagem:</strong> ${data.mensagem || ""}<br>
+
+                    <strong>Empresa:</strong> ${data.empresa || "—"}<br>
+
+                    <strong>Competência:</strong> ${data.competencia || "—"}<br>
+
+                    <strong>Valor INSS:</strong> ${valorFormatado}
+                </div>
+
+                <table class="tabela-resultado">
+                    <thead>
+                        <tr>
+                            <th style="text-align:left;">Item Validado</th>
+                            <th style="text-align:center;">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            const itensParaValidar = [
+                {
+                    label: "Valor Guia vs DCTF",
+                    status: data.valor_ok
+                },
+                {
+                    label: "Empresa",
+                    status: data.empresa_ok
+                },
+                {
+                    label: "Competência Guia",
+                    status: data.competencia_guia_ok
+                },
+                {
+                    label: "Competência DCTF",
+                    status: data.competencia_dctf_ok
+                },
+                {
+                    label: "Estrutura DCTF",
+                    status: data.estrutura_dctf_ok
+                },
+                {
+                    label: "Pagamento Identificado",
+                    status: data.pagamento_identificado
+                }
+            ];
+
+            itensParaValidar.forEach(item => {
+
+                let statusHtml = "";
+
+                if (item.status) {
+                    statusHtml = "✔ OK";
+                } else if (item.label === "Empresa") {
+                    statusHtml = `
+                        ❌ Divergente<br>
+                        <small>Guia: ${data.empresa_guia || "-"}</small><br>
+                        <small>DCTF: ${data.empresa_dctf || "-"}</small>
+                    `;
+                } else {
+                    statusHtml = "❌ Pendente";
+                }
+
+                html += `
+                    <tr>
+                        <td style="font-weight:500; padding: 8px;">
+                            ${item.label}
+                        </td>
+                        <td style="text-align:center; padding: 8px;"
+                            class="${item.status ? 'text-sucesso' : 'text-alerta'}">
+                            ${statusHtml}
+                        </td>
+                    </tr>
+                `;
+            });
+
+            html += `</tbody></table>`;
+
+            if (erros.length > 0) {
+                html += `
+                    <div style="margin-top:15px; color:#c0392b; font-size: 0.9em;">
+                        <strong>❌ Erros:</strong><br>
+                        ${erros.join("<br>")}
+                    </div>
+                `;
+            }
+
+            if (avisos.length > 0) {
+                html += `
+                    <div style="margin-top:10px; color:#f39c12; font-size: 0.9em;">
+                        <strong>⚠ Avisos:</strong><br>
+                        ${avisos.join("<br>")}
+                    </div>
+                `;
+            }
+
+            box.innerHTML = html;
+
+        } catch (err) {
+            console.error("Erro na requisição:", err);
+            box.className = "resultado status-erro";
+            box.innerHTML = `❌ Erro técnico ao processar a validação do INSS no servidor.`;
+        }
+    });
+})();
+</script>

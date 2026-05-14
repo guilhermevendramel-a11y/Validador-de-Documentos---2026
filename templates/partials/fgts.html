@@ -1,0 +1,169 @@
+<div class="container">
+    <div class="card">
+        <h3>📄 Validador de FGTS Digital</h3>
+
+        <form id="formFGTS" enctype="multipart/form-data">
+            
+            <!-- RELATÓRIO -->
+            <div class="input-group">
+                <label>Relatório de Trabalhadores (PDF):</label>
+                <input type="file" name="relatorio_fgts" class="form-control" required>
+            </div>
+            
+            <!-- GUIA -->
+            <div class="input-group">
+                <label>Guia + Comprovante (PDF):</label>
+                <input type="file" name="guia_fgts" class="form-control" required>
+            </div>
+            
+            <!-- CAMPOS -->
+            <div style="display: flex; gap: 15px;">
+                <div class="input-group" style="flex: 1;">
+                    <label>Competência:</label>
+                    <input type="text" name="competencia" placeholder="MM/AAAA" class="form-control">
+                </div>
+                <div class="input-group" style="flex: 2;">
+                    <label>Tomador / CNO da Obra:</label>
+                    <input type="text" name="tomador" placeholder="Ex: 90.025.44783/76" class="form-control">
+                </div>
+            </div>
+
+            <button class="btn" type="submit">VALIDAR DOCUMENTOS</button>
+        </form>
+
+        <div id="resultadoFGTS" class="resultado"></div>
+    </div>
+</div>
+
+<script>
+document.getElementById("formFGTS").addEventListener("submit", async function(e) {
+    e.preventDefault();
+
+    const box = document.getElementById("resultadoFGTS");
+    box.style.display = "block";
+    box.className = "resultado";
+    box.innerHTML = "⏳ Processando FGTS...";
+
+    try {
+        const formData = new FormData(this);
+
+        const resp = await fetch("/validar_fgts", {
+            method: "POST",
+            body: formData
+        });
+
+        if (!resp.ok) throw new Error("Erro no servidor");
+
+        const data = await resp.json();
+
+        console.log("📦 FGTS BACKEND:", data);
+
+        // =============================
+        // STATUS
+        // =============================
+        let statusClass = "erro";
+        if (data.status === "Aprovado") statusClass = "ok";
+        if (data.status === "Parcial") statusClass = "parcial";
+
+        box.className = "resultado " + statusClass;
+
+        // =============================
+        // HEADER
+        // =============================
+        let html = `
+            <div class="status-header">
+                <strong>Status:</strong> ${data.status}<br>
+                <strong>Mensagem:</strong> ${data.mensagem}<br><br>
+
+                <strong>Empresa:</strong> ${data.empresa || "-"}<br>
+                <strong>Competência:</strong> ${data.competencia || "-"}<br>
+                <strong>Valor FGTS:</strong> R$ ${(data.valor || 0).toFixed(2)}<br>
+                <strong>Data Pagamento:</strong> ${data.data_pagamento || "-"}<br>
+            </div>
+        `;
+
+        // =============================
+        // DOCUMENTOS
+        // =============================
+        if (data.documentos) {
+            html += `
+                <h4>📄 Documentos FGTS</h4>
+                <table class="tabela-resultado">
+                    <thead>
+                        <tr>
+                            <th>Documento</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            const docs = {
+                "Relação de Trabalhadores": data.documentos.relacao_trabalhadores,
+                "Relação de Categorias": data.documentos.relacao_categorias,
+                "Relação de Estabelecimentos": data.documentos.relacao_estabelecimentos,
+                "Relação de Tipos de Valor": data.documentos.relacao_tipo_valor,
+                "Relação de Tomadores": data.documentos.relacao_tomadores
+            };
+
+            for (const nome in docs) {
+                html += `
+                    <tr>
+                        <td>${nome}</td>
+                        <td>${docs[nome] ? "✔️" : "❌"}</td>
+                    </tr>
+                `;
+            }
+
+            html += `</tbody></table>`;
+        }
+
+        // =============================
+        // COLABORADORES
+        // =============================
+        html += `
+        <h4>👥 Colaboradores</h4>
+        <table class="tabela-resultado">
+            <thead>
+                <tr>
+                    <th>Nome</th>
+                    <th>Valor FGTS</th>
+                    <th>Tomador</th>
+                </tr>
+            </thead>
+            <tbody>
+        `;
+
+        const trabalhadores = data.trabalhadores || [];
+
+        if (trabalhadores.length > 0) {
+            trabalhadores.forEach(c => {
+                html += `
+                <tr>
+                    <td>${c.nome || "-"}</td>
+                    <td>R$ ${(c.valor || 0).toFixed(2)}</td>
+                    <td>${c.tomador || "-"}</td>
+                </tr>
+                `;
+            });
+        } else {
+            html += `
+            <tr>
+                <td colspan="3" style="text-align:center; padding:20px; color:#999;">
+                    Nenhum colaborador encontrado
+                </td>
+            </tr>
+            `;
+        }
+
+        html += `</tbody></table>`;
+
+        box.innerHTML = html;
+
+    } catch (err) {
+        console.error(err);
+        box.className = "resultado erro";
+        box.innerHTML = "❌ Erro ao processar FGTS";
+    }
+});
+</script>

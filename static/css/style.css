@@ -1,0 +1,219 @@
+/* ===== RESET BÁSICO ===== */
+body {
+    margin: 0;
+    padding: 0;
+    font-family: "Segoe UI", Arial, sans-serif;
+    background: #f3f4f6;
+    color: #111827;
+}
+
+/* ===== HEADER PRINCIPAL ===== */
+.main-header {
+    background: #8b0000;
+    padding: 10px 20px;
+    color: #fff;
+    display: flex;
+    align-items: center;
+}
+
+.main-header img {
+    height: 25px;
+}
+
+.main-header strong {
+    margin-left: 10px;
+    font-size: 15px;
+}
+
+/* ===== CONTAINER CENTRAL ===== */
+.container {
+    max-width: 1200px;
+    margin: 15px auto;
+    padding: 0 20px;
+}
+
+/* ===== CARD (ESTILO COMPACTO) ===== */
+.card {
+    background: #ffffff;
+    padding: 15px 20px;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+
+.card h3 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    font-size: 1.1em;
+    color: #8b0000;
+    border-bottom: 1px solid #f0f0f0;
+    padding-bottom: 5px;
+}
+
+/* ===== FORMULÁRIOS ===== */
+label {
+    font-weight: 500;
+    font-size: 0.85em;
+    margin-bottom: 3px;
+    display: block;
+}
+
+input[type="file"],
+input[type="text"] {
+    display: block;
+    width: 100%;
+    margin-bottom: 8px;
+    padding: 5px;
+    font-size: 0.9em;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+
+/* ===== BOTÕES ===== */
+.btn {
+    background: #8b0000;
+    color: #fff;
+    border: none;
+    padding: 7px 15px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    width: 100%;
+    transition: background 0.2s;
+}
+
+.btn:hover {
+    background: #a00000;
+}
+
+/* ===== STATUS HEADERS (RESPOSTAS) ===== */
+.resultado {
+    margin-top: 15px;
+    border-radius: 6px;
+    font-size: 14px;
+    display: none; /* Escondido por padrão, exibido via JS */
+}
+
+.status-header {
+    padding: 8px 12px;
+    border-radius: 4px;
+    margin-bottom: 10px;
+    font-size: 0.9em;
+}
+
+.status-ok, .ok {
+    background: #e8f5e9;
+    border-left: 5px solid #2e7d32;
+    color: #1b5e20;
+}
+
+.status-erro, .erro {
+    background: #fdecea;
+    border-left: 5px solid #c62828;
+    color: #b71c1c;
+}
+
+/* ===== TABELA DE RESULTADOS (NOMINAL) ===== */
+.tabela-resultado {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 5px;
+    font-size: 13px;
+    background: #fff;
+}
+
+.tabela-resultado th {
+    background: #f8f9fa;
+    text-align: center;
+    padding: 6px 8px;
+    border-bottom: 2px solid #e5e7eb;
+    color: #4b5563;
+}
+
+.tabela-resultado th:first-child {
+    text-align: left;
+}
+
+.tabela-resultado td {
+    padding: 6px 8px;
+    border-bottom: 1px solid #eee;
+    vertical-align: middle;
+}
+
+.tabela-resultado tr:hover {
+    background: #f9f9f9;
+}
+
+/* Helpers para Cores de Status dentro da Tabela */
+.text-sucesso { color: #2e7d32; font-weight: bold; }
+.text-alerta { color: #c62828; font-weight: bold; }
+
+/* Classe para o texto de processamento */
+.loading {
+    padding: 10px;
+    font-style: italic;
+    color: #666;
+}
+
+/* ===== AJUSTES DE RESPONSIVIDADE ===== */
+.table-responsive {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin-top: 10px;
+}
+
+/* ===== BADGES DE STATUS (ESTILO VT/VA) ===== */
+.badge {
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+.bg-success { background-color: #e8f5e9; color: #2e7d32; border: 1px solid #2e7d32; }
+.bg-warning { background-color: #fff3e0; color: #ef6c00; border: 1px solid #ef6c00; }
+.bg-danger  { background-color: #fdecea; color: #c62828; border: 1px solid #c62828; }
+
+/* ===== QUADRO FINANCEIRO (CARDS LADO A LADO) ===== */
+.quadro-resumo {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.resumo-item {
+    flex: 1;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    text-align: center;
+}
+
+.resumo-item small {
+    display: block;
+    color: #666;
+    font-weight: bold;
+    font-size: 0.75em;
+    margin-bottom: 3px;
+}
+
+.resumo-item span {
+    font-size: 1.1em;
+    font-weight: bold;
+}
+
+/* ===== ANIMAÇÃO DE LOADING ===== */
+.loading::after {
+    content: " .";
+    animation: dots 1.5s steps(5, end) infinite;
+}
+
+@keyframes dots {
+    0%, 20% { color: rgba(0,0,0,0); text-shadow: .25em 0 0 rgba(0,0,0,0), .5em 0 0 rgba(0,0,0,0); }
+    40% { color: #666; text-shadow: .25em 0 0 rgba(0,0,0,0), .5em 0 0 rgba(0,0,0,0); }
+    60% { text-shadow: .25em 0 0 #666, .5em 0 0 rgba(0,0,0,0); }
+    80%, 100% { text-shadow: .25em 0 0 #666, .5em 0 0 #666; }
+}

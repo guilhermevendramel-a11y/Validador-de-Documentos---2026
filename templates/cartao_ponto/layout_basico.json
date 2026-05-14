@@ -1,0 +1,29 @@
+{
+  "tipo": "cartao_ponto",
+  "layout": "basico",
+
+  "identificacao": {
+    "palavras_chave": [
+      "CARTAO PONTO",
+      "FUNCIONARIO",
+      "HORARIO",
+      "SALARIO",
+      "FUNCAO"
+    ]
+  },
+
+  "campos": {
+    "nome": {
+      "regex": "\\b([A-ZÁÉÍÓÚÂÊÔÃÕÇ]{3,}(?:\\s+[A-ZÁÉÍÓÚÂÊÔÃÕÇ]{2,}){1,})\\b"
+    },
+    "competencia": {
+      "regex": "(JANEIRO|FEVEREIRO|MARCO|ABRIL|MAIO|JUNHO|JULHO|AGOSTO|SETEMBRO|OUTUBRO|NOVEMBRO|DEZEMBRO)\\s+(\\d{4})"
+    }
+  },
+
+  "assinatura": {
+    "tipo": "imagem",
+    "regiao": "bottom",
+    "percentual_area": 0.4
+  }
+}

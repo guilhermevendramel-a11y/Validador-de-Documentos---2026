@@ -92,7 +92,7 @@ class CNDValidator:
         primeiro_mes_seguinte = (dt_ref.replace(day=1) + timedelta(days=32)).replace(day=1)
         return primeiro_mes_seguinte - timedelta(days=1)
 
-    def analisar(self, caminhos_pdf, cnpj_esperado, competencia_alvo=None):
+    def analisar(self, caminhos_pdf, cnpj_esperado, competencia_alvo=None, tipos_esperados=None):
         try:
             if competencia_alvo and len((competencia_alvo or "").strip()) >= 7:
                 ref_date = datetime.strptime(competencia_alvo, "%m/%Y")
@@ -105,6 +105,7 @@ class CNDValidator:
 
         resultados = []
         cnpj_esperado_limpo = re.sub(r"\D", "", cnpj_esperado or "")
+        tipos_obrigatorios = set(tipos_esperados or self.TIPOS_ESPERADOS)
         tipos_encontrados = set()
 
         for caminho in caminhos_pdf or []:
@@ -112,7 +113,7 @@ class CNDValidator:
             texto_upper = texto.upper()
 
             tipo = self._normalizar_tipo(texto_upper)
-            if tipo in self.TIPOS_ESPERADOS:
+            if tipo in tipos_obrigatorios:
                 tipos_encontrados.add(tipo)
 
             cnpj_encontrado = self._extrair_cnpj(texto)
@@ -130,10 +131,12 @@ class CNDValidator:
                 except ValueError:
                     vigente = False
 
-            status_ok = cnpj_ok and vigente and tipo in self.TIPOS_ESPERADOS
+            status_ok = cnpj_ok and vigente and tipo in tipos_obrigatorios
             motivo = []
             if tipo == "Desconhecido":
                 motivo.append("Tipo de certidao nao identificado")
+            elif tipo not in tipos_obrigatorios:
+                motivo.append("Tipo de certidao diferente do esperado")
             if not cnpj_ok:
                 motivo.append("CNPJ divergente")
             if not vigente:
@@ -151,7 +154,7 @@ class CNDValidator:
                 }
             )
 
-        faltantes = sorted(list(self.TIPOS_ESPERADOS - tipos_encontrados))
+        faltantes = sorted(list(tipos_obrigatorios - tipos_encontrados))
         if faltantes:
             resultados.append(
                 {
@@ -166,11 +169,12 @@ class CNDValidator:
             )
 
         qtd_ok = sum(
-            1 for r in resultados if r.get("item") in self.TIPOS_ESPERADOS and r.get("status") == "OK"
+            1 for r in resultados if r.get("item") in tipos_obrigatorios and r.get("status") == "OK"
         )
+        total_obrigatorios = len(tipos_obrigatorios)
 
         return {
-            "status": "Aprovado" if qtd_ok == 3 and not faltantes else "Reprovado",
-            "mensagem": f"{qtd_ok}/3 certidao(oes) validas para a competencia {ref_date.strftime('%m/%Y')}",
+            "status": "Aprovado" if qtd_ok == total_obrigatorios and not faltantes else "Reprovado",
+            "mensagem": f"{qtd_ok}/{total_obrigatorios} certidao(oes) validas para a competencia {ref_date.strftime('%m/%Y')}",
             "validacoes": resultados,
         }

@@ -1,8 +1,11 @@
 import { handleValidation } from "@/lib/pythonBridge";
+import { getValidationConfig } from "@/lib/validationRegistry";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+const validation = getValidationConfig("inss");
+
 export async function POST(request) {
-  return handleValidation(request, "inss", ["guia_inss", "dctfweb"]);
+  return handleValidation(request, validation.endpoint, validation.fileFields);
 }

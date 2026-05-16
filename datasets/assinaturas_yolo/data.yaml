@@ -1,6 +1,0 @@
-path: C:/Users/Notebook/Desktop/validador_gestaodocumental/datasets/assinaturas_yolo
-train: images/train
-val: images/val
-
-names:
-  0: assinatura

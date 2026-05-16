@@ -1,8 +1,11 @@
 import { handleValidation } from "@/lib/pythonBridge";
+import { getValidationConfig } from "@/lib/validationRegistry";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+const validation = getValidationConfig("cartao_ponto");
+
 export async function POST(request) {
-  return handleValidation(request, "cartao_ponto", ["file"]);
+  return handleValidation(request, validation.endpoint, validation.fileFields);
 }

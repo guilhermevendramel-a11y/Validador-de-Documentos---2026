@@ -105,18 +105,34 @@ const validators = [
     files: [{ name: "kit_unico", label: "Upload do kit completo (PDF unico)", required: true }],
   },
   {
-    id: "cnd",
-    title: "Validacao Individual de Certidoes",
-    action: "/validar_cnd",
+    id: "cnd_inss",
+    title: "Validar CND INSS / CND Federal",
+    action: "/validar_cnd_inss",
     fields: [
       { type: "text", name: "cnpj_esperado", label: "CNPJ da empresa", placeholder: "00.000.000/0000-00" },
       { type: "text", name: "competencia", label: "Competencia", placeholder: "MM/AAAA" },
     ],
-    files: [
-      { name: "cnd_federal", label: "CND INSS / CND Federal", required: true },
-      { name: "cndt", label: "CNDT", required: true },
-      { name: "crf_fgts", label: "CRF FGTS", required: true },
+    files: [{ name: "cnd_inss", label: "CND INSS / CND Federal", required: true }],
+  },
+  {
+    id: "cndt",
+    title: "Validar CNDT",
+    action: "/validar_cndt",
+    fields: [
+      { type: "text", name: "cnpj_esperado", label: "CNPJ da empresa", placeholder: "00.000.000/0000-00" },
+      { type: "text", name: "competencia", label: "Competencia", placeholder: "MM/AAAA" },
     ],
+    files: [{ name: "cndt", label: "CNDT", required: true }],
+  },
+  {
+    id: "crf_fgts",
+    title: "Validar CRF FGTS",
+    action: "/validar_crf_fgts",
+    fields: [
+      { type: "text", name: "cnpj_esperado", label: "CNPJ da empresa", placeholder: "00.000.000/0000-00" },
+      { type: "text", name: "competencia", label: "Competencia", placeholder: "MM/AAAA" },
+    ],
+    files: [{ name: "crf_fgts", label: "CRF FGTS", required: true }],
   },
   {
     id: "vt",
@@ -863,6 +879,32 @@ function CartaoPontoTable({ result, colaboradores = [] }) {
   );
 }
 
+function appendCardFields(body, form, config) {
+  for (const field of config.fields || []) {
+    const input = form.elements.namedItem(field.name);
+    if (!input) continue;
+    body.append(field.name, input.value || "");
+  }
+}
+
+function appendCardFiles(body, form, config) {
+  for (const file of config.files || []) {
+    const input = form.elements.namedItem(file.name);
+    if (!input?.files?.length) continue;
+
+    for (const selected of Array.from(input.files)) {
+      body.append(config.id === "cnd" ? "cnds" : file.name, selected);
+    }
+  }
+}
+
+function buildCardFormData(form, config) {
+  const body = new FormData();
+  appendCardFields(body, form, config);
+  appendCardFiles(body, form, config);
+  return body;
+}
+
 function ValidatorCard({
   config,
   onPackageReady,
@@ -880,25 +922,31 @@ function ValidatorCard({
 
   async function onSubmit(event) {
     event.preventDefault();
-    if (config.id !== "pacote") {
-      setResult({
-        status: "Parcial",
-        mensagem: "Use apenas o card 'Importar Pasta de Documentos' para validar.",
-      });
-      return;
-    }
-
     setLoading(true);
-    setResult({ status: "Processando", mensagem: "Processando documentos..." });
+    setResult({
+      status: "Processando",
+      mensagem: config.id === "pacote" ? "Processando documentos..." : "Validando documento...",
+    });
 
     try {
-      const input = event.currentTarget.querySelector('input[name="pacote"]');
-      const files = Array.from(input?.files || []);
-      const importResult = attachPackageFiles(files);
-      setResult(importResult);
-      if (typeof onPackageReady === "function") {
-        onPackageReady(files);
+      if (config.id === "pacote") {
+        const input = event.currentTarget.querySelector('input[name="pacote"]');
+        const files = Array.from(input?.files || []);
+        const importResult = attachPackageFiles(files);
+        setResult(importResult);
+        if (typeof onPackageReady === "function") {
+          onPackageReady(files);
+        }
+        return;
       }
+
+      const body = buildCardFormData(event.currentTarget, config);
+      const response = await fetch(config.action, {
+        method: "POST",
+        body,
+      });
+      const data = await response.json();
+      setResult(data);
     } catch (error) {
       setResult({ status: "Erro", mensagem: "Falha na comunicacao com o servidor", detalhe: error.message });
     } finally {
@@ -955,11 +1003,11 @@ function ValidatorCard({
           </div>
         ))}
 
-        {config.id === "pacote" && (
-          <button className="btn" type="submit" disabled={loading}>
-            {loading ? "Importando..." : (config.submitLabel || "Importar")}
-          </button>
-        )}
+        <button className="btn" type="submit" disabled={loading}>
+          {loading
+            ? (config.id === "pacote" ? "Importando..." : "Validando...")
+            : (config.submitLabel || "Validar")}
+        </button>
       </form>
 
       {result && (

@@ -4,7 +4,7 @@ import { getValidationConfig } from "@/lib/validationRegistry";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const validation = getValidationConfig("kit_rescisao");
+const validation = getValidationConfig("crf_fgts");
 
 export async function POST(request) {
   return handleValidation(request, validation.endpoint, validation.fileFields);

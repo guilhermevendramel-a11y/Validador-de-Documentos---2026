@@ -3,6 +3,15 @@ node_modules/
 tools/
 uploads/*
 !uploads/.gitkeep
+**/data.yaml
+data.yaml
+tmp/
+temp/
+outputs/
+output/
+results/
+processed_uploads/
+uploaded_files/
 data/document_learning.json
 datasets/assinaturas_cvat/images/
 datasets/assinaturas_yolo/images/

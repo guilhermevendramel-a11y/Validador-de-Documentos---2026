@@ -19,9 +19,11 @@ const validators = [
   },
   {
     id: "cartao",
-    title: "Validar Cartao Ponto",
+    title: "Cartao Ponto",
     action: "/validar_cartao_ponto",
-    fields: [{ type: "text", name: "competencia", label: "Competencia", placeholder: "MM/AAAA", required: true }],
+    fields: [
+      { type: "text", name: "competencia", label: "Competencia", placeholder: "MM/AAAA", required: true },
+    ],
     files: [{ name: "file", label: "Arquivo do cartao ponto", required: true }],
   },
   {
@@ -41,7 +43,6 @@ const validators = [
           { label: "CNPEM AUDITORIO - 90.025.44783/76", value: "90.025.44783/76" },
           { label: "CNPEM FASEADO - 90.025.44853/70", value: "90.025.44853/70" },
           { label: "COCAMAR - 90.024.82127/74", value: "90.024.82127/74" },
-          { label: "Eurofarma - 90.002.42081/74", value: "90.002.42081/74" },
           { label: "Eurofarma - 90.002.42081/74", value: "90.002.42081/74" },
           { label: "ELKEM CHRONOS - 42.593.061/0004-00", value: "42.593.061/0004-00" },
           { label: "Elkem - 42.593.061/0004-00", value: "42.593.061/0004-00" },
@@ -72,7 +73,7 @@ const validators = [
   },
   {
     id: "inss",
-    title: "Validar INSS (Guia + DCTFWeb)",
+    title: "INSS (Guia + DCTFWeb)",
     action: "/validar_inss",
     fields: [{ type: "text", name: "competencia", label: "Competencia esperada", placeholder: "MM/AAAA", required: true }],
     files: [
@@ -89,7 +90,7 @@ const validators = [
   },
   {
     id: "holerite",
-    title: "Validar Holerite + Comprovante",
+    title: "Holerite + Comprovante",
     action: "/validar_holerite",
     fields: [{ type: "text", name: "competencia", label: "Competencia", placeholder: "MM/AAAA" }],
     files: [
@@ -99,14 +100,14 @@ const validators = [
   },
   {
     id: "rescisao",
-    title: "Kit Rescisao Unificado",
+    title: "Kit Rescisao",
     action: "/validar_kit_rescisao",
     fields: [{ type: "text", name: "nome_colaborador", label: "Colaborador", placeholder: "Nome completo", required: true }],
     files: [{ name: "kit_unico", label: "Upload do kit completo (PDF unico)", required: true }],
   },
   {
     id: "cnd_inss",
-    title: "Validar CND INSS / CND Federal",
+    title: "CND INSS / CND Federal",
     action: "/validar_cnd_inss",
     fields: [
       { type: "text", name: "cnpj_esperado", label: "CNPJ da empresa", placeholder: "00.000.000/0000-00" },
@@ -116,7 +117,7 @@ const validators = [
   },
   {
     id: "cndt",
-    title: "Validar CNDT",
+    title: "CNDT",
     action: "/validar_cndt",
     fields: [
       { type: "text", name: "cnpj_esperado", label: "CNPJ da empresa", placeholder: "00.000.000/0000-00" },
@@ -126,7 +127,7 @@ const validators = [
   },
   {
     id: "crf_fgts",
-    title: "Validar CRF FGTS",
+    title: "CRF FGTS",
     action: "/validar_crf_fgts",
     fields: [
       { type: "text", name: "cnpj_esperado", label: "CNPJ da empresa", placeholder: "00.000.000/0000-00" },
@@ -148,7 +149,7 @@ const validators = [
   },
   {
     id: "seguro",
-    title: "Apólice do Seguro de Vida",
+    title: "ApÃ³lice do Seguro de Vida",
     action: "/validar_seguro_vida",
     files: [{ name: "comprovantes", label: "Apolice + comprovante", multiple: true, required: true }],
   },
@@ -178,7 +179,7 @@ function Money({ value, prefix = "" }) {
 }
 
 function CheckMark({ ok }) {
-  return <span className={ok ? "check-ok" : "check-fail"}>{ok ? "✓" : "✕"}</span>;
+  return <span className={ok ? "check-ok" : "check-fail"}>{ok ? "OK" : "FALTA"}</span>;
 }
 
 function normalizeText(value) {
@@ -347,11 +348,11 @@ function FgtsResult({ result }) {
   const documentos = result?.documentos || {};
   const colaboradores = result?.colaboradores || result?.trabalhadores || [];
   const documentosOrdenados = [
-    "Relação de Trabalhadores",
-    "Relação de Categorias",
-    "Relação de Estabelecimentos",
-    "Relação de Tipos de Valor",
-    "Relação de Tomadores",
+    "RelaÃ§Ã£o de Trabalhadores",
+    "RelaÃ§Ã£o de Categorias",
+    "RelaÃ§Ã£o de Estabelecimentos",
+    "RelaÃ§Ã£o de Tipos de Valor",
+    "RelaÃ§Ã£o de Tomadores",
   ];
 
   const valorFgts = result.valor_fgts_digital ?? result.valor_a_pagar;
@@ -430,8 +431,8 @@ function InssResult({ result }) {
     { item: "Valor Guia vs DCTF", ok: result.valor_ok },
     { item: "Valor Guia vs Comprovante", ok: result.comprovante_ok },
     { item: "Empresa", ok: result.empresa_ok },
-    { item: "Competência Guia", ok: result.competencia_guia_ok },
-    { item: "Competência DCTF", ok: result.competencia_dctf_ok },
+    { item: "CompetÃªncia Guia", ok: result.competencia_guia_ok },
+    { item: "CompetÃªncia DCTF", ok: result.competencia_dctf_ok },
     { item: "Estrutura DCTF", ok: result.estrutura_dctf_ok },
     { item: "Pagamento Identificado", ok: result.pagamento_identificado },
   ];
@@ -461,7 +462,7 @@ function InssResult({ result }) {
           {validacoes.map((validacao) => (
             <tr key={validacao.item}>
               <td>{validacao.item}</td>
-              <td><span className={validacao.ok ? "cell-ok" : "cell-fail"}>{validacao.ok ? "✓ OK" : "✕ Pendente"}</span></td>
+              <td><span className={validacao.ok ? "cell-ok" : "cell-fail"}>{validacao.ok ? "OK" : "Pendente"}</span></td>
             </tr>
           ))}
         </tbody>
@@ -787,29 +788,31 @@ function VaValoresBox({ result }) {
 }
 
 function statusText(ok, failLabel = "FALTA") {
-  return ok ? "✓ OK" : `✕ ${failLabel}`;
+  return ok ? "OK" : `${failLabel}`;
 }
 
 function StatusCell({ ok, failLabel = "FALTA", label = "OK" }) {
   return (
     <span className={ok ? "cell-ok" : "cell-fail"}>
-      {ok ? `✓ ${label}` : `✕ ${failLabel}`}
+      {ok ? `${label}` : `${failLabel}`}
     </span>
   );
 }
 
 function assinaturaLabel(colaborador) {
   if (!colaborador?.assinatura) return "FALTA";
-  if (colaborador.assinatura_tipo === "digital") return "Digital";
-  if (colaborador.assinatura_tipo === "manual/rubrica") return "Manual/Rubrica";
-  return "OK";
+  const tipo = String(colaborador.assinatura_tipo || "").toLowerCase();
+  if (tipo.includes("digital")) return "Digital";
+  if (tipo.includes("manual") || tipo.includes("rubrica")) return "Manual";
+  return "Manual";
 }
 
 function CartaoPontoTable({ result, colaboradores = [] }) {
-  if (!Array.isArray(colaboradores) || colaboradores.length === 0) return null;
-
+  const lista = Array.isArray(colaboradores) ? colaboradores : [];
   const resumo = result?.assinaturas || {};
-  const pendencias = colaboradores.flatMap((colaborador) => {
+  const avisosGlobais = Array.isArray(result?.avisos_globais) ? result.avisos_globais : [];
+
+  const pendencias = lista.flatMap((colaborador) => {
     const nome = colaborador.nome || "Colaborador sem nome";
     const itens = [];
 
@@ -836,34 +839,51 @@ function CartaoPontoTable({ result, colaboradores = [] }) {
         <div><strong>Mensagem:</strong> {result?.mensagem || "-"}</div>
       </div>
 
-      <div className="table-wrap">
-        <table className="tabela-ocr">
-          <thead>
-            <tr>
-              <th>Colaborador</th>
-              <th>Competência</th>
-              <th>Assinatura</th>
-              <th>Marcações</th>
-            </tr>
-          </thead>
-          <tbody>
-            {colaboradores.map((colaborador, index) => (
-              <tr key={`${colaborador.nome || "colaborador"}-${index}`}>
-                <td>{colaborador.nome || "-"}</td>
-                <td className={colaborador.competencia_ok === false ? "cell-fail" : "cell-ok"}>
-                  {colaborador.competencia || "-"}
-                </td>
-                <td>
-                  <StatusCell ok={Boolean(colaborador.assinatura)} label={assinaturaLabel(colaborador)} />
-                </td>
-                <td>
-                  <StatusCell ok={Boolean(colaborador.marcacoes)} failLabel="INCOMPLETO" />
-                </td>
+      {lista.length > 0 ? (
+        <div className="table-wrap">
+          <table className="tabela-ocr">
+            <thead>
+              <tr>
+                <th>Colaborador</th>
+                <th>Competência</th>
+                <th>Assinatura</th>
+                <th>Marcações</th>
               </tr>
+            </thead>
+            <tbody>
+              {lista.map((colaborador, index) => (
+                <tr key={`${colaborador.nome || "colaborador"}-${index}`}>
+                  <td>{colaborador.nome || "-"}</td>
+                  <td className={colaborador.competencia_ok === false ? "cell-fail" : "cell-ok"}>
+                    {colaborador.competencia || "-"}
+                  </td>
+                  <td>
+                    <StatusCell ok={Boolean(colaborador.assinatura)} label={assinaturaLabel(colaborador)} />
+                  </td>
+                  <td>
+                    <StatusCell ok={Boolean(colaborador.marcacoes)} failLabel="INCOMPLETO" />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div className="muted" style={{ marginTop: "8px" }}>
+          Nenhum colaborador com nome válido foi identificado neste cartão ponto.
+        </div>
+      )}
+
+      {avisosGlobais.length > 0 && (
+        <div className="pendencias">
+          <strong>Avisos globais:</strong>
+          <ul>
+            {avisosGlobais.map((aviso, index) => (
+              <li key={`${aviso}-${index}`}>{aviso}</li>
             ))}
-          </tbody>
-        </table>
-      </div>
+          </ul>
+        </div>
+      )}
 
       {pendencias.length > 0 && (
         <div className="pendencias">
@@ -878,7 +898,6 @@ function CartaoPontoTable({ result, colaboradores = [] }) {
     </>
   );
 }
-
 function appendCardFields(body, form, config) {
   for (const field of config.fields || []) {
     const input = form.elements.namedItem(field.name);
@@ -975,8 +994,8 @@ function ValidatorCard({
             <label htmlFor={`${config.id}-${field.name}`}>{label}</label>
             {field.type === "select" ? (
               <select id={`${config.id}-${field.name}`} name={field.name} required={field.required}>
-                {(options || []).map((option) => (
-                  <option key={`${field.name}-${option.value}`} value={option.value}>
+                {(options || []).map((option, optionIndex) => (
+                  <option key={`${field.name}-${option.value}-${optionIndex}`} value={option.value}>
                     {option.label}
                   </option>
                 ))}
@@ -1097,7 +1116,7 @@ export default function ValidatorDashboard() {
 
         next.pacote = {
           status: data.status || "Processado",
-          mensagem: data.mensagem || "Validação concluída.",
+          mensagem: data.mensagem || "ValidaÃ§Ã£o concluÃ­da.",
         };
 
         (data.validacoes || []).forEach((item) => {
@@ -1149,7 +1168,7 @@ export default function ValidatorDashboard() {
         }
 
         next.pacote = algumaValidacaoExecutada
-          ? { status: "Processado", mensagem: "Validação concluída com os arquivos informados manualmente." }
+          ? { status: "Processado", mensagem: "ValidaÃ§Ã£o concluÃ­da com os arquivos informados manualmente." }
           : { status: "Erro", mensagem: "Nenhum arquivo foi informado para validar." };
       }
 
@@ -1198,3 +1217,5 @@ export default function ValidatorDashboard() {
     </>
   );
 }
+
+

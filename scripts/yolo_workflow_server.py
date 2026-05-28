@@ -1,5 +1,7 @@
-import subprocess
+﻿import subprocess
 import sys
+import threading
+from datetime import datetime
 from pathlib import Path
 
 import fitz
@@ -11,8 +13,75 @@ ROOT = Path(__file__).resolve().parents[1]
 IMAGE_DIR = ROOT / "datasets" / "assinaturas_cvat" / "images"
 LABEL_DIR = ROOT / "datasets" / "assinaturas_yolo" / "labels"
 CLASS_FILE = ROOT / "datasets" / "assinaturas_yolo" / "classes.txt"
+DEFAULT_CLASSES = [
+    "assinatura",
+    "rubrica",
+    "campo_assinatura",
+    "campo_assinatura_vazio",
+    "carimbo",
+    "assinatura_digital_visual",
+]
 
 app = Flask(__name__)
+RECENT_UPLOAD = []
+TRAIN_STATE = {
+    "running": False,
+    "started_at": None,
+    "finished_at": None,
+    "returncode": None,
+    "logs": [],
+}
+TRAIN_LOCK = threading.Lock()
+
+
+def _train_log(message):
+    stamp = datetime.now().strftime("%H:%M:%S")
+    with TRAIN_LOCK:
+        TRAIN_STATE["logs"].append(f"[{stamp}] {message}")
+
+
+def _run_train_process(cmd):
+    with TRAIN_LOCK:
+        TRAIN_STATE["running"] = True
+        TRAIN_STATE["returncode"] = None
+        TRAIN_STATE["started_at"] = datetime.now().isoformat()
+        TRAIN_STATE["finished_at"] = None
+        TRAIN_STATE["logs"] = []
+    _train_log("Treino iniciado no servidor.")
+    _train_log(f"Comando: {' '.join(str(part) for part in cmd)}")
+    try:
+        process = subprocess.Popen(
+            cmd,
+            cwd=ROOT,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=False,
+            bufsize=0,
+        )
+        if process.stdout is not None:
+            for raw in iter(process.stdout.readline, b""):
+                if not raw:
+                    break
+                try:
+                    line = raw.decode("utf-8", errors="replace")
+                except Exception:
+                    line = raw.decode("cp1252", errors="replace")
+                clean = (line or "").rstrip()
+                if clean:
+                    _train_log(clean)
+        returncode = process.wait()
+    except Exception as exc:
+        _train_log(f"Erro ao executar treino: {exc}")
+        returncode = 1
+
+    with TRAIN_LOCK:
+        TRAIN_STATE["running"] = False
+        TRAIN_STATE["returncode"] = returncode
+        TRAIN_STATE["finished_at"] = datetime.now().isoformat()
+    if returncode == 0:
+        _train_log("Treino finalizado com sucesso.")
+    else:
+        _train_log(f"Treino finalizado com erro (codigo {returncode}).")
 
 
 def ensure_dirs():
@@ -20,7 +89,13 @@ def ensure_dirs():
     LABEL_DIR.mkdir(parents=True, exist_ok=True)
     CLASS_FILE.parent.mkdir(parents=True, exist_ok=True)
     if not CLASS_FILE.exists():
-        CLASS_FILE.write_text("assinatura\n", encoding="utf-8")
+        CLASS_FILE.write_text("\n".join(DEFAULT_CLASSES) + "\n", encoding="utf-8")
+
+
+def get_classes():
+    ensure_dirs()
+    classes = [ln.strip() for ln in CLASS_FILE.read_text(encoding="utf-8").splitlines() if ln.strip()]
+    return classes or DEFAULT_CLASSES
 
 
 def safe_stem(name):
@@ -103,6 +178,8 @@ def index():
     canvas { display: block; background: #fff; max-width: 100%; height: auto; cursor: crosshair; }
     .boxes { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0; }
     .tag { background: #fee2e2; border: 1px solid #fecaca; border-radius: 4px; color: #7f1d1d; padding: 4px 6px; font-size: 12px; }
+    .train-log { margin-top: 10px; border: 1px solid #d1d5db; border-radius: 6px; background: #0b1020; color: #d1e4ff; padding: 10px; min-height: 140px; max-height: 320px; overflow: auto; font: 12px/1.45 Consolas, Monaco, monospace; white-space: pre-wrap; }
+    .train-log:empty::before { content: "O retorno do treino aparecera aqui."; color: #93a4c4; }
     @media (max-width: 860px) { .layout { grid-template-columns: 1fr; } }
   </style>
 </head>
@@ -121,10 +198,14 @@ def index():
 
     <section>
       <h2>2. Anotar no navegador</h2>
-      <p class="small">Clique numa imagem, arraste sobre a rubrica/assinatura e salve. A classe e sempre <code>assinatura</code>.</p>
+      <p class="small">Clique numa imagem, arraste sobre a area e salve na classe correta.</p>
       <div class="row">
+        <label class="small">Classe:
+          <select id="classSelect"></select>
+        </label>
         <button id="undoBtn" class="secondary">Desfazer caixa</button>
         <button id="clearBtn" class="secondary">Limpar imagem</button>
+        <button id="clearPageBtn" class="secondary">Limpar pÃ¡gina</button>
         <button id="saveLabelBtn">Salvar anotacao YOLO</button>
         <span id="selectedName" class="small">Nenhuma imagem selecionada.</span>
       </div>
@@ -138,9 +219,10 @@ def index():
     <section>
       <h2>3. Treinar YOLO</h2>
       <p class="small">Depois de anotar imagens suficientes, rode:</p>
-      <p><code>python scripts\\train_signature_yolo.py --data datasets\\assinaturas_yolo\\data.yaml --epochs 80 --imgsz 960</code></p>
+      <p><code>python scripts\\train_signature_yolo.py --data datasets\\assinaturas_yolo\\data.yaml --epochs 30 --imgsz 960</code></p>
       <button id="trainBtn" class="secondary">Iniciar treino pelo servidor</button>
       <p class="small">Modelo final esperado: <code>models\\assinatura_yolo.pt</code></p>
+      <div id="trainLog" class="train-log"></div>
     </section>
   </main>
 
@@ -150,15 +232,35 @@ def index():
     const ctx = canvas.getContext("2d");
     const selectedNameEl = document.getElementById("selectedName");
     const boxesEl = document.getElementById("boxes");
+    const trainLogEl = document.getElementById("trainLog");
     let selectedImage = "";
     let imageObj = null;
     let boxes = [];
     let drawing = false;
     let start = null;
+    let logCursor = 0;
+    let trainLogTimer = null;
 
     function showStatus(text) {
       statusEl.style.display = "block";
       statusEl.textContent = text;
+    }
+
+    function appendTrainLogs(lines) {
+      if (!lines.length) return;
+      trainLogEl.textContent += `${lines.join("\\n")}\\n`;
+      trainLogEl.scrollTop = trainLogEl.scrollHeight;
+    }
+
+    async function pollTrainLogs() {
+      const response = await fetch(`/api/train/logs?from=${logCursor}`);
+      const data = await response.json();
+      appendTrainLogs(data.logs || []);
+      logCursor = Number(data.next_from || logCursor);
+      if (!data.running && trainLogTimer) {
+        clearInterval(trainLogTimer);
+        trainLogTimer = null;
+      }
     }
 
     function canvasPoint(event) {
@@ -178,7 +280,8 @@ def index():
     function renderBoxes() {
       boxesEl.innerHTML = boxes.map((box, index) => {
         const b = normalizeBox(box);
-        return `<span class="tag">assinatura ${index + 1}: ${Math.round(b.w)}x${Math.round(b.h)}</span>`;
+        const classeNome = box.class_name || `classe_${box.class_id || 0}`;
+        return `<span class="tag">${classeNome} ${index + 1}: ${Math.round(b.w)}x${Math.round(b.h)}</span>`;
       }).join("");
     }
 
@@ -209,6 +312,8 @@ def index():
         const response = await fetch(`/api/labels/${encodeURIComponent(name)}`);
         const data = await response.json();
         boxes = (data.boxes || []).map((box) => ({
+          class_id: Number(box.class_id || 0),
+          class_name: box.class_name || "assinatura",
           x: (box.x_center - box.width / 2) * canvas.width,
           y: (box.y_center - box.height / 2) * canvas.height,
           w: box.width * canvas.width,
@@ -225,9 +330,13 @@ def index():
     async function loadImages() {
       const response = await fetch("/api/images");
       const data = await response.json();
+      renderGallery(data.images || []);
+    }
+
+    function renderGallery(images) {
       const gallery = document.getElementById("gallery");
       gallery.innerHTML = "";
-      data.images.forEach((name) => {
+      (images || []).forEach((name) => {
         const div = document.createElement("div");
         div.className = "thumb";
         div.dataset.name = name;
@@ -235,7 +344,7 @@ def index():
         div.addEventListener("click", () => selectImage(name));
         gallery.appendChild(div);
       });
-      if (!selectedImage && data.images.length) selectImage(data.images[0]);
+      if (!selectedImage && images.length) selectImage(images[0]);
     }
 
     document.getElementById("uploadBtn").addEventListener("click", async () => {
@@ -248,7 +357,9 @@ def index():
       const data = await response.json();
       showStatus(data.message);
       selectedImage = "";
-      await loadImages();
+      const created = data.created || [];
+      window.lastUploadedImages = created;
+      renderGallery(created);
     });
 
     canvas.addEventListener("mousedown", (event) => {
@@ -267,7 +378,10 @@ def index():
       const box = normalizeBox({ x: start.x, y: start.y, w: point.x - start.x, h: point.y - start.y });
       drawing = false;
       start = null;
-      if (box.w >= 5 && box.h >= 5) boxes.push(box);
+      const select = document.getElementById("classSelect");
+      const classId = Number(select.value || 0);
+      const className = select.options[select.selectedIndex]?.text || `classe_${classId}`;
+      if (box.w >= 5 && box.h >= 5) boxes.push({ ...box, class_id: classId, class_name: className });
       drawCanvas();
     });
 
@@ -279,12 +393,25 @@ def index():
       boxes = [];
       drawCanvas();
     });
+    document.getElementById("clearPageBtn").addEventListener("click", () => {
+      // Limpa apenas a interface atual (sem apagar arquivos/labels do disco)
+      selectedImage = "";
+      imageObj = null;
+      boxes = [];
+      selectedNameEl.textContent = "Nenhuma imagem selecionada.";
+      boxesEl.innerHTML = "";
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      canvas.width = 0;
+      canvas.height = 0;
+      document.getElementById("gallery").innerHTML = "";
+      showStatus("Pagina limpa. Nenhum arquivo foi apagado.");
+    });
     document.getElementById("saveLabelBtn").addEventListener("click", async () => {
       if (!selectedImage) return showStatus("Selecione uma imagem.");
       const yoloBoxes = boxes.map((box) => {
         const b = normalizeBox(box);
         return {
-          class_id: 0,
+          class_id: Number(box.class_id || 0),
           x_center: (b.x + b.w / 2) / canvas.width,
           y_center: (b.y + b.h / 2) / canvas.height,
           width: b.w / canvas.width,
@@ -300,12 +427,35 @@ def index():
       showStatus(data.message);
     });
     document.getElementById("trainBtn").addEventListener("click", async () => {
-      const response = await fetch("/api/train", { method: "POST" });
+      trainLogEl.textContent = "";
+      logCursor = 0;
+      const response = await fetch("/api/train", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ only_images: window.lastUploadedImages || [] }),
+      });
       const data = await response.json();
       showStatus(data.message);
+      await pollTrainLogs();
+      if (!trainLogTimer) {
+        trainLogTimer = setInterval(pollTrainLogs, 1000);
+      }
     });
 
-    loadImages();
+    async function loadClasses() {
+      const response = await fetch("/api/classes");
+      const data = await response.json();
+      const select = document.getElementById("classSelect");
+      select.innerHTML = "";
+      (data.classes || []).forEach((name, idx) => {
+        const op = document.createElement("option");
+        op.value = idx;
+        op.textContent = name;
+        select.appendChild(op);
+      });
+    }
+
+    loadClasses().then(loadImages);
   </script>
 </body>
 </html>
@@ -325,6 +475,7 @@ def api_images():
 @app.get("/api/labels/<path:filename>")
 def api_get_label(filename):
     path = label_path(filename)
+    classes = get_classes()
     boxes = []
     if path.exists():
         for line in path.read_text(encoding="utf-8").splitlines():
@@ -332,6 +483,7 @@ def api_get_label(filename):
             if len(parts) == 5:
                 boxes.append({
                     "class_id": int(float(parts[0])),
+                    "class_name": classes[int(float(parts[0]))] if int(float(parts[0])) < len(classes) else f"classe_{parts[0]}",
                     "x_center": float(parts[1]),
                     "y_center": float(parts[2]),
                     "width": float(parts[3]),
@@ -343,11 +495,15 @@ def api_get_label(filename):
 @app.post("/api/labels/<path:filename>")
 def api_save_label(filename):
     ensure_dirs()
+    classes = get_classes()
     boxes = request.json.get("boxes", []) if request.is_json else []
     lines = []
     for box in boxes:
+        class_id = int(box.get("class_id", 0))
+        if class_id < 0 or class_id >= len(classes):
+            continue
         lines.append(
-            f"{int(box.get('class_id', 0))} "
+            f"{class_id} "
             f"{float(box.get('x_center', 0)):.6f} "
             f"{float(box.get('y_center', 0)):.6f} "
             f"{float(box.get('width', 0)):.6f} "
@@ -357,8 +513,14 @@ def api_save_label(filename):
     return jsonify({"message": f"Anotacao salva: {len(lines)} assinatura(s)."})
 
 
+@app.get("/api/classes")
+def api_classes():
+    return jsonify({"classes": get_classes()})
+
+
 @app.post("/api/upload")
 def api_upload():
+    global RECENT_UPLOAD
     files = request.files.getlist("files")
     created = []
     for item in files:
@@ -367,6 +529,7 @@ def api_upload():
             created.extend(save_pdf_pages(item))
         elif ext in {".jpg", ".jpeg", ".png"}:
             created.extend(save_image(item))
+    RECENT_UPLOAD = created[:]
     return jsonify({"message": f"{len(created)} imagem(ns) pronta(s) para anotacao.", "created": created})
 
 
@@ -388,20 +551,69 @@ def api_train():
             )
         }), 500
 
+    payload = request.get_json(silent=True) or {}
+    only_images = payload.get("only_images") if isinstance(payload, dict) else []
+    if not only_images:
+        only_images = RECENT_UPLOAD
+
     cmd = [
         sys.executable,
         str(ROOT / "scripts" / "train_signature_yolo.py"),
         "--data",
         str(ROOT / "datasets" / "assinaturas_yolo" / "data.yaml"),
         "--epochs",
-        "80",
+        "30",
         "--imgsz",
         "960",
     ]
-    subprocess.Popen(cmd, cwd=ROOT)
-    return jsonify({"message": "Treino iniciado em segundo plano. Aguarde models/assinatura_yolo.pt."})
+
+    if only_images:
+        cmd.append("--only-images")
+        cmd.extend([str(Path(x).name) for x in only_images])
+
+    with TRAIN_LOCK:
+        if TRAIN_STATE["running"]:
+            return jsonify({"message": "Ja existe um treino em andamento. Acompanhe o log abaixo do botao."}), 409
+
+    thread = threading.Thread(target=_run_train_process, args=(cmd,), daemon=True)
+    thread.start()
+    if only_images:
+        return jsonify({"message": f"Treino iniciado com {len(only_images)} imagem(ns) do upload atual."})
+    return jsonify({"message": "Treino iniciado com todas as imagens anotadas (nenhum upload recente informado)."})
+
+
+@app.get("/api/train/logs")
+def api_train_logs():
+    start = request.args.get("from", "0")
+    try:
+        start_index = max(0, int(start))
+    except ValueError:
+        start_index = 0
+
+    with TRAIN_LOCK:
+        logs = TRAIN_STATE["logs"][start_index:]
+        next_from = len(TRAIN_STATE["logs"])
+        running = bool(TRAIN_STATE["running"])
+        returncode = TRAIN_STATE["returncode"]
+
+    return jsonify({
+        "logs": logs,
+        "next_from": next_from,
+        "running": running,
+        "returncode": returncode,
+    })
 
 
 if __name__ == "__main__":
     ensure_dirs()
     app.run(host="127.0.0.1", port=8010, debug=False)
+
+
+
+
+
+
+
+
+
+

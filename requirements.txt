@@ -1,13 +1,30 @@
 flask
 werkzeug
 pytesseract
-opencv-python
-numpy
-Pillow
+opencv-python==4.10.0.84
+opencv-python-headless==4.11.0.86
+opencv-contrib-python==4.10.0.84
+numpy==1.26.4
+Pillow==10.4.0
 python-dotenv
 pdfminer.six
 pdf2image
+pypdfium2==4.30.0
 pymupdf==1.26.6
 google-generativeai==0.5.4
 rapidfuzz==3.14.3
 openpyxl==3.1.5
+msvc-runtime==14.44.35112
+chardet==5.2.0
+
+# OCR/layout local para cartoes ponto escaneados/fotografados
+easyocr==1.7.2
+python-doctr==1.0.1
+tifffile<2026
+torch==2.12.0
+torchvision==0.27.0
+surya-ocr==0.17.1
+
+# PaddleOCR local para imagens escaneadas/fotos
+paddleocr==3.5.0
+paddlepaddle==3.2.2

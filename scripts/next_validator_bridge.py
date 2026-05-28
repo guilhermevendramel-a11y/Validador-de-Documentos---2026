@@ -124,7 +124,29 @@ def montar_data_table(resultado, endpoint=None):
                 linhas.append({"nome": str(item)})
         tabelas.append({
             "titulo": "Colaboradores",
-            "columns": colunas_objetos(linhas, ["nome", "competencia", "tomador", "valor_fgts", "valor", "assinatura", "holerite", "comprovante", "diferenca"]),
+            "columns": colunas_objetos(
+                linhas,
+                [
+                    "nome",
+                    "competencia",
+                    "competencia_ok",
+                    "marcacoes",
+                    "assinatura",
+                    "assinatura_tipo",
+                    "assinatura_origem",
+                    "assinatura_confianca",
+                    "assinatura_paginas",
+                    "assinatura_bbox",
+                    "assinatura_zona",
+                    "assinatura_motivo",
+                    "tomador",
+                    "valor_fgts",
+                    "valor",
+                    "holerite",
+                    "comprovante",
+                    "diferenca",
+                ],
+            ),
             "rows": linhas,
         })
 

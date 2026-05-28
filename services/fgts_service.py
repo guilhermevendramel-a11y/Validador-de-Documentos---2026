@@ -1,15 +1,12 @@
-import os
-from utils.ocr.ocr_fgts import extrair_texto_fgts
-from utils.gemini.fgts import extrair_fgts
-from utils.validations import limpar, extrair_competencia
+﻿import os
 
+from utils.gemini.fgts import extrair_fgts
+from utils.ocr import deve_chamar_ia, extrair_documento_inteligente, montar_payload_ia_economico
+from utils.ocr.ocr_fgts import extrair_texto_fgts
+from utils.validations import extrair_competencia, limpar
 from validators.fgts.secoes import dividir_secoes
 from validators.fgts.trabalhadores import extrair_trabalhadores
 
-
-# ==========================================================
-# 🔧 UTIL
-# ==========================================================
 
 def normalizar_cnpj(valor):
     if not valor:
@@ -17,167 +14,99 @@ def normalizar_cnpj(valor):
     return "".join(filter(str.isdigit, valor))
 
 
-# ==========================================================
-# 🚀 SERVICE PRINCIPAL
-# ==========================================================
+def processar_fgts(caminho_relatorio, caminho_guia=None, cno_digitado=None, competencia_digitada=None):
+    print("\n[FGTS] ================= FGTS SERVICE =================")
 
-def processar_fgts(
-    caminho_relatorio,
-    caminho_guia=None,
-    cno_digitado=None,
-    competencia_digitada=None
-):
-    print("\n🚀 ================= FGTS SERVICE =================")
-
-    # ======================================================
-    # 1. OCR RELATÓRIO
-    # ======================================================
-    print("📄 [FGTS] Lendo relatório...")
-
-    texto_relatorio = extrair_texto_fgts(caminho_relatorio)
+    ocr_relatorio = extrair_documento_inteligente(caminho_relatorio, tipo_documento="fgts", usar_ocr=True)
+    texto_relatorio = limpar(ocr_relatorio.get("texto", ""))
 
     if not texto_relatorio:
-        return {
-            "status": "Reprovado",
-            "mensagem": "Falha ao ler relatório FGTS.",
-            "sucesso": False
-        }
-
-    texto_relatorio = limpar(texto_relatorio)
-
-    # ======================================================
-    # 2. PARSER ESTRUTURADO (PRINCIPAL)
-    # ======================================================
-    print("🧠 [FGTS] Usando parser estruturado...")
+        return {"status": "Reprovado", "mensagem": "Falha ao ler relatório FGTS.", "sucesso": False}
 
     secoes = dividir_secoes(texto_relatorio)
     bloco_trabalhadores = secoes.get("trabalhadores", "")
-
     trabalhadores = extrair_trabalhadores(bloco_trabalhadores)
 
-    print(f"👥 Trabalhadores encontrados: {len(trabalhadores)}")
+    resultado_parser_local = {
+        "campos": {
+            "competencia": extrair_competencia(texto_relatorio),
+            "cno": cno_digitado,
+        },
+        "inconclusivo": len(trabalhadores) == 0,
+    }
 
-    # ======================================================
-    # 3. FALLBACK GEMINI (APENAS APOIO)
-    # ======================================================
-    print("🤖 [FGTS] Executando Gemini (fallback)...")
+    chamar_ia, motivo_ia = deve_chamar_ia(ocr_relatorio, resultado_parser_local, tipo_documento="fgts")
+    print(f"[FGTS] IA fallback? {'sim' if chamar_ia else 'nao'} motivo={motivo_ia}")
 
-    try:
-        dados_relatorio = extrair_fgts(texto_relatorio)
-    except Exception as e:
-        print(f"❌ Erro Gemini: {e}")
-        dados_relatorio = {}
+    dados_relatorio = {}
+    payload_ia = None
+    if chamar_ia:
+        payload_ia = montar_payload_ia_economico("fgts", ocr_relatorio, resultado_parser_local)
+        try:
+            dados_relatorio = extrair_fgts("\n".join([t.get("trecho", "") for t in payload_ia.get("trechos_relevantes", [])]) or texto_relatorio)
+        except Exception as e:
+            print(f"[FGTS] Erro Gemini fallback: {e}")
+            dados_relatorio = {}
 
     if not isinstance(dados_relatorio, dict):
         dados_relatorio = {}
 
-    # ======================================================
-    # 4. TOMADORES (PRIORIDADE PARSER)
-    # ======================================================
     tomadores = dados_relatorio.get("tomadores", [])
-
-    # 🔥 Parser SEMPRE manda
     if trabalhadores:
-        print("🔥 [FGTS] Usando dados do parser (prioridade)")
-
         if not tomadores:
-            tomadores = [{
-                "cnpj_ou_cno": cno_digitado or "",
-                "colaboradores": trabalhadores
-            }]
+            tomadores = [{"cnpj_ou_cno": cno_digitado or "", "colaboradores": trabalhadores}]
         else:
-            # injeta trabalhadores no tomador existente
             for t in tomadores:
                 t["colaboradores"] = trabalhadores
 
-    # ======================================================
-    # 5. OCR GUIA (OPCIONAL)
-    # ======================================================
     dados_guia = {}
-
     if caminho_guia:
-        print("📄 [FGTS] Processando guia...")
+        texto_guia = limpar(extrair_texto_fgts(caminho_guia))
+        if texto_guia:
+            guia_local = {"campos": {"competencia": extrair_competencia(texto_guia)}}
+            guia_ocr = extrair_documento_inteligente(caminho_guia, tipo_documento="fgts", usar_ocr=True)
+            chama_guia_ia, _ = deve_chamar_ia(guia_ocr, guia_local, tipo_documento="fgts")
+            if chama_guia_ia:
+                try:
+                    dados_guia = extrair_fgts(texto_guia)
+                except Exception:
+                    dados_guia = {}
 
-        texto_guia = extrair_texto_fgts(caminho_guia)
-        texto_guia = limpar(texto_guia)
-
-        try:
-            dados_guia = extrair_fgts(texto_guia)
-        except:
-            dados_guia = {}
-
-    # ======================================================
-    # 6. VALIDAR TOMADOR
-    # ======================================================
     tomador_encontrado = None
     cno_digitado_norm = normalizar_cnpj(cno_digitado)
-
     for t in tomadores:
         cno_doc = normalizar_cnpj(t.get("cnpj_ou_cno"))
-
-        # 🔥 comparação mais robusta
         if cno_digitado_norm and cno_digitado_norm in cno_doc:
             tomador_encontrado = t
             break
 
-    # ======================================================
-    # 7. COLABORADORES
-    # ======================================================
-    colaboradores = []
+    colaboradores = tomador_encontrado.get("colaboradores", []) if tomador_encontrado else []
 
-    if tomador_encontrado:
-        colaboradores = tomador_encontrado.get("colaboradores", [])
-
-    # ======================================================
-    # 8. DETECÇÃO DE DOCUMENTOS (SEM IA)
-    # ======================================================
     texto_upper = texto_relatorio.upper()
-
     documentos_status = {
-        "relacao_trabalhadores": "RELAÇÃO DE TRABALHADORES" in texto_upper,
-        "relacao_categorias": "RELAÇÃO DE CATEGORIAS" in texto_upper,
-        "relacao_estabelecimentos": "RELAÇÃO DE ESTABELECIMENTOS" in texto_upper,
-        "relacao_tipo_valor": "RELAÇÃO DE TIPOS DE VALOR" in texto_upper,
-        "relacao_tomadores": "RELAÇÃO DE TOMADORES" in texto_upper,
+        "relacao_trabalhadores": "RELAÇÃO DE TRABALHADORES" in texto_upper or "RELAÃ‡ÃƒO DE TRABALHADORES" in texto_upper,
+        "relacao_categorias": "RELAÇÃO DE CATEGORIAS" in texto_upper or "RELAÃ‡ÃƒO DE CATEGORIAS" in texto_upper,
+        "relacao_estabelecimentos": "RELAÇÃO DE ESTABELECIMENTOS" in texto_upper or "RELAÃ‡ÃƒO DE ESTABELECIMENTOS" in texto_upper,
+        "relacao_tipo_valor": "RELAÇÃO DE TIPOS DE VALOR" in texto_upper or "RELAÃ‡ÃƒO DE TIPOS DE VALOR" in texto_upper,
+        "relacao_tomadores": "RELAÇÃO DE TOMADORES" in texto_upper or "RELAÃ‡ÃƒO DE TOMADORES" in texto_upper,
     }
 
-    # ======================================================
-    # 9. COMPETÊNCIA
-    # ======================================================
-    competencia_doc = (
-        dados_relatorio.get("competencia")
-        or extrair_competencia(texto_relatorio)
-    )
+    competencia_doc = dados_relatorio.get("competencia") or extrair_competencia(texto_relatorio)
+    competencia_ok = True if not competencia_digitada else competencia_digitada == competencia_doc
 
-    competencia_ok = True
-    if competencia_digitada:
-        competencia_ok = competencia_digitada == competencia_doc
-
-    # ======================================================
-    # 10. STATUS FINAL
-    # ======================================================
     if not documentos_status["relacao_trabalhadores"]:
         status = "Reprovado"
         mensagem = "Documento não possui relação de trabalhadores."
-
     elif not tomador_encontrado:
         status = "Reprovado"
         mensagem = "Tomador não encontrado no documento."
-
     elif not colaboradores:
         status = "Parcial"
         mensagem = "Tomador encontrado, mas sem colaboradores."
-
     else:
         status = "Aprovado"
         mensagem = f"{len(colaboradores)} colaborador(es) encontrados."
 
-    print(f"✅ [FGTS] STATUS: {status}")
-    print("================================================\n")
-
-    # ======================================================
-    # 11. RETORNO FINAL
-    # ======================================================
     return {
         "status": status,
         "mensagem": mensagem,
@@ -189,6 +118,11 @@ def processar_fgts(
             "tomador_encontrado": bool(tomador_encontrado),
             "cno_digitado": cno_digitado,
             "colaboradores": colaboradores,
-            "documentos": documentos_status
-        }
+            "documentos": documentos_status,
+            "ocr_metodo": ocr_relatorio.get("metodo"),
+            "ocr_qualidade": ocr_relatorio.get("qualidade"),
+            "ia_fallback": chamar_ia,
+            "ia_motivo": motivo_ia,
+            "ia_payload": payload_ia,
+        },
     }

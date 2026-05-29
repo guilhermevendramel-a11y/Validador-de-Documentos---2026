@@ -42,6 +42,11 @@ def clear_split_dirs():
         if folder.exists():
             shutil.rmtree(folder)
         folder.mkdir(parents=True, exist_ok=True)
+    # Ultralytics caches label/image mapping in these files. If stale, it can
+    # reference files from an old split and crash with FileNotFoundError.
+    for cache_file in [DATASET_DIR / "labels" / "train.cache", DATASET_DIR / "labels" / "val.cache"]:
+        if cache_file.exists():
+            cache_file.unlink()
 
 
 def copy_pair(image_path, split):

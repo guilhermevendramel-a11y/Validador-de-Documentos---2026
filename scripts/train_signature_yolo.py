@@ -1,4 +1,4 @@
-import argparse
+﻿import argparse
 import os
 import shutil
 import subprocess
@@ -9,17 +9,18 @@ def main():
     parser = argparse.ArgumentParser(description="Treina YOLO para detectar assinaturas.")
     parser.add_argument("--data", default="datasets/assinaturas_yolo/data.yaml")
     parser.add_argument("--model", default="yolov8n.pt")
-    parser.add_argument("--epochs", type=int, default=80)
+    parser.add_argument("--epochs", type=int, default=30)
     parser.add_argument("--imgsz", type=int, default=960)
     parser.add_argument("--batch", type=int, default=8)
     parser.add_argument("--name", default="assinatura_yolo")
     parser.add_argument("--deploy", default="models/assinatura_yolo.pt")
     parser.add_argument("--skip-prepare", action="store_true")
+    parser.add_argument("--only-images", nargs="*", default=[])
     args = parser.parse_args()
 
     if not args.skip_prepare:
         subprocess.run(
-            [sys.executable, "scripts/prepare_signature_yolo_dataset.py"],
+            [sys.executable, "scripts/prepare_signature_yolo_dataset.py", *( ["--only-images", *args.only_images] if args.only_images else [] )],
             check=True,
         )
 
@@ -58,3 +59,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

@@ -128,7 +128,13 @@ def pagina_pertence_ao_colaborador(texto_pagina, nome_normalizado):
 def detectar_rubricas_por_colaborador(caminho_pdf, nomes):
     nomes_norm = {nome: normalizar_nome(nome) for nome in nomes if nome}
     resultado = {
-        nome: {"assinatura": False, "confianca": 0, "paginas": []}
+        nome: {
+            "assinatura": False,
+            "confianca": 0,
+            "paginas": [],
+            "origem": "opencv",
+            "motivo": "Nenhuma rubrica detectada no fallback OpenCV.",
+        }
         for nome in nomes_norm
     }
 
@@ -158,6 +164,7 @@ def detectar_rubricas_por_colaborador(caminho_pdf, nomes):
                         resultado[nome]["assinatura"] = True
                         resultado[nome]["confianca"] = max(resultado[nome]["confianca"], score)
                         resultado[nome]["paginas"].append(idx + 1)
+                        resultado[nome]["motivo"] = "Rubrica detectada por OpenCV na pagina vinculada ao colaborador."
 
     except Exception as exc:
         print(f"Erro ao detectar rubricas: {exc}")
@@ -172,3 +179,26 @@ def detectar_rubrica_global(caminho_pdf):
     except Exception as exc:
         print(f"Erro ao detectar rubrica global: {exc}")
         return False
+
+
+def detectar_rubrica_global_evidencias(caminho_pdf):
+    evidencias = {
+        "assinatura": False,
+        "confianca": 0,
+        "paginas": [],
+        "origem": "opencv",
+        "motivo": "Nenhuma rubrica detectada no fallback OpenCV.",
+    }
+    try:
+        with fitz.open(caminho_pdf) as doc:
+            for idx, pagina in enumerate(doc):
+                score = pontuar_rubrica(renderizar_pagina(pagina))
+                if score >= 55:
+                    evidencias["assinatura"] = True
+                    evidencias["confianca"] = max(evidencias["confianca"], score)
+                    evidencias["paginas"].append(idx + 1)
+            if evidencias["assinatura"]:
+                evidencias["motivo"] = "Rubrica detectada por OpenCV em pagina(s) do documento."
+    except Exception as exc:
+        evidencias["motivo"] = f"Falha no fallback OpenCV: {exc}"
+    return evidencias

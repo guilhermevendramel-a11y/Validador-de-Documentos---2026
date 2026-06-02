@@ -3,6 +3,8 @@ import os
 import re
 
 import google.generativeai as genai
+import numpy as np
+from PIL import Image
 
 from utils.gemini_service import chamar_gemini, modelos_disponiveis
 
@@ -179,3 +181,105 @@ def normalizar_resposta_cartao_ponto(dados):
         "metodo_extracao": dados.get("metodo_extracao") or "Inferencia de IA",
         "confianca_leitura": dados.get("confianca_leitura") or 0,
     }
+
+
+def _imagem_para_pil(imagem):
+    if imagem is None:
+        return None
+    arr = np.array(imagem)
+    if arr.size == 0:
+        return None
+    if len(arr.shape) == 2:
+        return Image.fromarray(arr)
+    # BGR -> RGB
+    return Image.fromarray(arr[:, :, ::-1])
+
+
+def extrair_cartao_ponto_por_regiao_gemini(recortes, campos_pendentes):
+    campos_pendentes = [str(c).strip().lower() for c in (campos_pendentes or []) if str(c).strip()]
+    recortes = recortes or {}
+    resposta_vazia = {
+        "nome": "",
+        "nome_encontrado": False,
+        "competencia": "",
+        "periodo_inicio": "",
+        "periodo_fim": "",
+        "marcacoes_encontradas": False,
+        "assinatura": False,
+        "assinatura_tipo": "inconclusiva",
+        "assinatura_local": "desconhecido",
+        "confianca": 0.0,
+        "motivos": [],
+        "avisos": [],
+    }
+    if not campos_pendentes:
+        return dict(resposta_vazia)
+
+    imagens_alvo = []
+    if any(c in campos_pendentes for c in ["nome", "competencia"]):
+        for k in ["topo", "cabecalho_esquerdo"]:
+            img = _imagem_para_pil(recortes.get(k))
+            if img is not None:
+                imagens_alvo.append((k, img))
+    if "marcacoes" in campos_pendentes:
+        img = _imagem_para_pil(recortes.get("tabela"))
+        if img is not None:
+            imagens_alvo.append(("tabela", img))
+    if "assinatura" in campos_pendentes:
+        for k in ["coluna_assinatura", "rodape"]:
+            img = _imagem_para_pil(recortes.get(k))
+            if img is not None:
+                imagens_alvo.append((k, img))
+    if not imagens_alvo:
+        img = _imagem_para_pil(recortes.get("total"))
+        if img is not None:
+            imagens_alvo.append(("total", img))
+
+    if not imagens_alvo:
+        out = dict(resposta_vazia)
+        out["motivos"] = ["Sem recortes válidos para fallback IA."]
+        return out
+
+    prompt = f"""
+Retorne somente JSON valido, sem markdown.
+Objetivo: preencher somente os campos pendentes do cartao ponto.
+Campos pendentes: {", ".join(campos_pendentes)}
+
+Schema obrigatorio:
+{{
+  "nome": "",
+  "nome_encontrado": true,
+  "competencia": "",
+  "periodo_inicio": "",
+  "periodo_fim": "",
+  "marcacoes_encontradas": true,
+  "assinatura": true,
+  "assinatura_tipo": "rubrica | assinatura_manual | assinatura_digital | ausente | inconclusiva",
+  "assinatura_local": "rodape | coluna_assinatura | desconhecido",
+  "confianca": 0.0,
+  "motivos": [],
+  "avisos": []
+}}
+"""
+    try:
+        model = genai.GenerativeModel(modelos_disponiveis()[0])
+        payload = [prompt] + [img for _k, img in imagens_alvo]
+        response = model.generate_content(payload, generation_config={"temperature": 0.05})
+        raw = limpar_json(getattr(response, "text", "") or "")
+        dados = json.loads(raw) if raw else {}
+        if not isinstance(dados, dict):
+            return dict(resposta_vazia)
+        out = dict(resposta_vazia)
+        out.update({k: dados.get(k, out.get(k)) for k in out.keys()})
+        out["confianca"] = float(out.get("confianca") or 0.0)
+        out["nome_encontrado"] = bool(out.get("nome_encontrado"))
+        out["marcacoes_encontradas"] = bool(out.get("marcacoes_encontradas"))
+        out["assinatura"] = bool(out.get("assinatura"))
+        out["motivos"] = list(out.get("motivos") or [])
+        out["avisos"] = list(out.get("avisos") or [])
+        return out
+    except Exception as exc:
+        print("Erro Gemini por regiao cartao ponto:", exc)
+        out = dict(resposta_vazia)
+        out["motivos"] = [f"Falha IA por região: {exc}"]
+        return out

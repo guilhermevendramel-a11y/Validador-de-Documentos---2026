@@ -1,4 +1,3 @@
-import utils.tesseract_config
 import os
 import fitz
 import pytesseract
@@ -6,6 +5,11 @@ import cv2
 import numpy as np
 import re
 from pdf2image import convert_from_path
+import utils.tesseract_config as tesseract_config
+
+# Garante que o cmd configurado em utils.tesseract_config prevaleca
+if getattr(tesseract_config, "tesseract_cmd", None):
+    pytesseract.pytesseract.tesseract_cmd = tesseract_config.tesseract_cmd
 
 
 # =========================================================
@@ -80,6 +84,55 @@ def preprocessar_imagem(img):
     thresh = cv2.resize(thresh, (w * 2, h * 2), interpolation=cv2.INTER_CUBIC)
 
     return thresh
+
+
+def preprocessar_imagem_adaptativo(img):
+    img_np = np.array(img)
+    if len(img_np.shape) == 3:
+        img_np = cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR)
+
+    gray = cv2.cvtColor(img_np, cv2.COLOR_BGR2GRAY)
+    # Aumenta contraste local (bom para scans claros/acinzentados)
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+    gray = clahe.apply(gray)
+    # Binarizacao adaptativa para papeis com iluminacao desigual
+    th = cv2.adaptiveThreshold(
+        gray,
+        255,
+        cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+        cv2.THRESH_BINARY,
+        31,
+        15
+    )
+    h, w = th.shape
+    th = cv2.resize(th, (w * 2, h * 2), interpolation=cv2.INTER_CUBIC)
+    return th
+
+
+def score_texto(texto):
+    if not texto:
+        return 0
+    letras = sum(c.isalpha() for c in texto)
+    digitos = sum(c.isdigit() for c in texto)
+    palavras = len(re.findall(r"\b[\wÀ-ÿ]{2,}\b", texto))
+    return (letras * 2) + digitos + (palavras * 5)
+
+
+def renderizar_paginas_fitz(caminho_pdf, max_paginas=10, zoom=3):
+    imagens = []
+    try:
+        with fitz.open(caminho_pdf) as doc:
+            limite = min(len(doc), max_paginas)
+            for i in range(limite):
+                page = doc[i]
+                pix = page.get_pixmap(matrix=fitz.Matrix(zoom, zoom), alpha=False)
+                arr = np.frombuffer(pix.samples, dtype=np.uint8).reshape(pix.height, pix.width, pix.n)
+                if pix.n == 4:
+                    arr = cv2.cvtColor(arr, cv2.COLOR_RGBA2RGB)
+                imagens.append(arr)
+    except Exception:
+        return []
+    return imagens
 
 
 # =========================================================
@@ -182,32 +235,55 @@ def extrair_texto_pdf(caminho_pdf: str) -> str:
     print("🟡 [OCR] Iniciando Tesseract (Modo Avançado)...")
 
     try:
-        imagens = convert_from_path(
-            caminho_pdf,
-            dpi=500,
-            first_page=1,
-            last_page=10
-        )
+        try:
+            imagens = convert_from_path(
+                caminho_pdf,
+                dpi=500,
+                first_page=1,
+                last_page=10
+            )
+        except Exception:
+            print("⚠️ Poppler indisponivel no ambiente. Usando fallback via PyMuPDF.")
+            imagens = renderizar_paginas_fitz(caminho_pdf, max_paginas=10, zoom=3)
+            # Converte arrays numpy para formato esperado das funcoes de preprocessamento
+            imagens = [cv2.cvtColor(img, cv2.COLOR_BGR2RGB) if len(img.shape) == 3 else img for img in imagens]
 
         texto_ocr = []
+        psm_opcoes = [6, 11, 4]
 
         for i, img in enumerate(imagens):
             print(f"📄 [OCR] Processando página {i+1}...")
+            img_np = np.array(img)
+            if len(img_np.shape) == 3 and img_np.shape[2] == 4:
+                img_np = cv2.cvtColor(img_np, cv2.COLOR_RGBA2RGB)
 
-            # 🔥 pipeline completo
-            img_proc = preprocessar_imagem(img)
-            img_proc = corrigir_rotacao(img_proc)
+            variantes = [
+                ("pesado", corrigir_rotacao(preprocessar_imagem(img_np))),
+                ("adaptativo", corrigir_rotacao(preprocessar_imagem_adaptativo(img_np))),
+                ("cinza_simples", cv2.cvtColor(img_np, cv2.COLOR_RGB2GRAY) if len(img_np.shape) == 3 else img_np),
+            ]
 
-            custom_config = r'--oem 3 --psm 6 -l por'
+            melhor_texto = ""
+            melhor_score = -1
 
-            texto = pytesseract.image_to_string(
-                img_proc,
-                config=custom_config
-            )
+            for nome_variante, img_proc in variantes:
+                for psm in psm_opcoes:
+                    custom_config = f'--oem 3 --psm {psm} -l por'
+                    try:
+                        texto_candidato = pytesseract.image_to_string(
+                            img_proc,
+                            config=custom_config
+                        )
+                    except Exception:
+                        texto_candidato = ""
 
-            print(f"\n🧾 TEXTO PÁGINA {i+1}:\n{texto[:400]}\n")
+                    score = score_texto(texto_candidato)
+                    if score > melhor_score:
+                        melhor_score = score
+                        melhor_texto = texto_candidato
 
-            texto_ocr.append(texto)
+            print(f"\n🧾 TEXTO PÁGINA {i+1} (melhor score={melhor_score}):\n{melhor_texto[:400]}\n")
+            texto_ocr.append(melhor_texto)
 
         completo = "\n".join(texto_ocr)
 

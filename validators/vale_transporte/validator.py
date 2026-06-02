@@ -4,6 +4,8 @@ from typing import Dict, List
 import fitz
 
 from utils.ocr import extrair_texto_pdf_inteligente
+from utils.digital_signature_detection import detectar_autenticacao_digital
+from utils.yolo_signature_detection import detectar_assinaturas_yolo, yolo_disponivel
 
 
 def _normalizar(texto: str) -> str:
@@ -115,8 +117,19 @@ def _match_nome(a: str, b: str) -> bool:
 class VTValidator:
     def analisar(self, caminhos_pdf):
         paginas_info: List[Dict] = []
+        texto_global_auth = []
+        yolo_modelo_ok = yolo_disponivel()
+        yolo_por_arquivo = {}
+        yolo_deteccoes_total = 0
 
         for caminho in caminhos_pdf or []:
+            caminho_key = str(caminho or "")
+            if yolo_modelo_ok:
+                deteccoes = detectar_assinaturas_yolo(caminho)
+                yolo_por_arquivo[caminho_key] = len(deteccoes) > 0
+                yolo_deteccoes_total += len(deteccoes)
+            else:
+                yolo_por_arquivo[caminho_key] = False
             paginas = _extrair_paginas(caminho)
             for idx, txt in enumerate(paginas):
                 norm = _normalizar(txt)
@@ -135,7 +148,11 @@ class VTValidator:
                     "texto": txt,
                     "norm": norm,
                     "nome": nome,
+                    "arquivo": caminho_key,
                 })
+                texto_global_auth.append(txt)
+
+        auth_digital = detectar_autenticacao_digital("\n".join(texto_global_auth))
 
         resultados = []
 
@@ -145,7 +162,11 @@ class VTValidator:
         for t in termo_pages:
             nome = t["nome"] or "COLABORADOR NAO IDENTIFICADO"
             termo_ok = _termo_nao_optante_ok(t["norm"])
-            assinatura_ok = any(0 <= s["idx"] - t["idx"] <= 2 for s in assinatura_pages) or ("ASSINATURA" in t["norm"])
+            assinatura_ok = (
+                any(0 <= s["idx"] - t["idx"] <= 2 for s in assinatura_pages)
+                or ("ASSINATURA" in t["norm"])
+                or bool(yolo_por_arquivo.get(t.get("arquivo")))
+            )
             status = "OK" if (termo_ok and assinatura_ok) else "Pendente"
             resultados.append({
                 "colaborador": nome,
@@ -208,6 +229,11 @@ class VTValidator:
             "status": status_global,
             "mensagem": "Validação de Vale Transporte concluída" if status_global != "Pendente" else "Há colaboradores sem evidência suficiente de VT",
             "validacoes": resultados,
+            "autenticacao_digital": auth_digital,
+            "assinatura_yolo": {
+                "modelo_disponivel": yolo_modelo_ok,
+                "deteccoes_totais": yolo_deteccoes_total,
+            },
             "colaboradores": [
                 {
                     "nome": r["colaborador"],

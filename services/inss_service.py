@@ -1,60 +1,34 @@
-import os
-
-from utils.ocr.ocr_inss import extrair_texto_inss
-from utils.gemini.inss import extrair_inss_inteligente
+﻿from utils.gemini.inss import extrair_inss_inteligente
+from utils.ocr import deve_chamar_ia, extrair_documento_inteligente, montar_payload_ia_economico
 from validators.inss.validator import INSSValidator
 
 
 def processar_inss(caminho_guia, caminho_dctf, competencia_esperada):
-    """
-    Serviço responsável por processar a validação do INSS
-    seguindo o padrão dos outros services (holerite, fgts, etc).
-    """
-
     try:
-        # -------------------------
-        # 1. OCR
-        # -------------------------
-        texto_guia = extrair_texto_inss(caminho_guia)
-
+        ocr_guia = extrair_documento_inteligente(caminho_guia, tipo_documento="inss", usar_ocr=True)
+        texto_guia = ocr_guia.get("texto", "")
         if not texto_guia:
-            return {
-                "status": "Erro",
-                "mensagem": "OCR não conseguiu extrair texto da guia",
-                "erros": ["OCR falhou"]
-            }
+            return {"status": "Erro", "mensagem": "OCR não conseguiu extrair texto da guia", "erros": ["OCR falhou"]}
 
-        # -------------------------
-        # 2. IA (Gemini)
-        # -------------------------
-        dados_guia = extrair_inss_inteligente(texto_guia)
+        parser_local = {"campos": {"competencia": competencia_esperada}, "inconclusivo": False}
+        chamar_ia, motivo_ia = deve_chamar_ia(ocr_guia, parser_local, tipo_documento="inss")
 
-        # Proteção contra retorno inválido
-        if not isinstance(dados_guia, dict):
-            print("⚠️ Dados IA inválidos, usando fallback...")
-            dados_guia = None
+        dados_guia = None
+        payload_ia = None
+        if chamar_ia:
+            payload_ia = montar_payload_ia_economico("inss", ocr_guia, parser_local)
+            dados_guia = extrair_inss_inteligente("\n".join([t.get("trecho", "") for t in payload_ia.get("trechos_relevantes", [])]) or texto_guia)
+            if not isinstance(dados_guia, dict):
+                dados_guia = None
 
-        print("🧠 Dados IA:", dados_guia)
-
-        # -------------------------
-        # 3. Validação
-        # -------------------------
         validador = INSSValidator()
-
-        resultado = validador.analisar(
-            caminho_guia,
-            caminho_dctf,
-            competencia_esperada,
-            dados_ia=dados_guia
-        )
-
+        resultado = validador.analisar(caminho_guia, caminho_dctf, competencia_esperada, dados_ia=dados_guia)
+        resultado["ocr_metodo"] = ocr_guia.get("metodo")
+        resultado["ocr_qualidade"] = ocr_guia.get("qualidade")
+        resultado["ia_fallback"] = chamar_ia
+        resultado["ia_motivo"] = motivo_ia
+        resultado["ia_payload"] = payload_ia
         return resultado
 
     except Exception as e:
-        print(f"❌ ERRO NO SERVICE INSS: {e}")
-
-        return {
-            "status": "Erro",
-            "mensagem": f"Erro ao processar INSS: {str(e)}",
-            "erros": [str(e)]
-        }
+        return {"status": "Erro", "mensagem": f"Erro ao processar INSS: {str(e)}", "erros": [str(e)]}

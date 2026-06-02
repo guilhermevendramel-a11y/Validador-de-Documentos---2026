@@ -1,0 +1,55 @@
+{
+  "id": "cartao_ponto_modelo_001",
+  "tipo_documento": "cartao_ponto",
+  "fornecedor": "desconhecido",
+  "ancoras_fortes": [
+    "ASSINATURA",
+    "CARTAO DE PONTO",
+    "EMPREGADO",
+    "ENTRADA",
+    "HORAS",
+    "INTERVALO",
+    "PERIODO",
+    "PERÍODO",
+    "SAIDA",
+    "SAÍDA"
+  ],
+  "ancoras_nome": [
+    "FUNCIONARIO",
+    "FUNCIONÁRIO",
+    "COLABORADOR",
+    "EMPREGADO",
+    "NOME"
+  ],
+  "ancoras_competencia": [
+    "COMPETENCIA",
+    "COMPETÊNCIA",
+    "PERIODO",
+    "PERÍODO"
+  ],
+  "ancoras_marcacoes": [
+    "DATA",
+    "ENTRADA",
+    "SAIDA",
+    "SAÍDA",
+    "INTERVALO",
+    "HORAS"
+  ],
+  "ancoras_assinatura": [
+    "ASSINATURA",
+    "RUBRICA"
+  ],
+  "campos_obrigatorios": [
+    "nome",
+    "competencia",
+    "marcacoes",
+    "assinatura"
+  ],
+  "zona_assinatura": "rodape",
+  "estrategia_nome": "buscar_nome_esperado_ou_ancora",
+  "estrategia_competencia": "regex_global_e_ancora",
+  "estrategia_marcacoes": "regex_datas_horarios",
+  "score_minimo_layout": 0.6,
+  "criado_em": "2026-05-19T17:17:10",
+  "atualizado_em": "2026-05-19T17:17:10"
+}

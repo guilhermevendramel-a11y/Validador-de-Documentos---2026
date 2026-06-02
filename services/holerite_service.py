@@ -5,9 +5,15 @@ from rapidfuzz import fuzz
 
 from services.document_learning import aprender_documento, encontrar_layout
 from utils.gemini.holerite import extrair_holerite_inteligente
+from utils.digital_signature_detection import detectar_autenticacao_digital
 from utils.ocr.ocr_comprovante import extrair_texto_comprovante
 from utils.ocr.ocr_holerite import extrair_texto_holerite
 from utils.signature_detection import detectar_rubricas_por_colaborador
+from utils.yolo_signature_detection import (
+    detectar_assinaturas_yolo,
+    detectar_assinaturas_yolo_por_colaborador,
+    yolo_disponivel,
+)
 
 
 TERMOS_INVALIDOS_NOME = (
@@ -503,9 +509,21 @@ def processar_holerite_comprovante(path_holerite, paths_comprovantes, competenci
     colaboradores = []
     erros = []
     comprovantes_disponiveis = list(comprovantes_extraidos)
-    assinatura_digital_global = texto_indica_assinatura_digital(texto_holerite)
+    auth_digital = detectar_autenticacao_digital(texto_holerite + "\n" + "\n".join(textos_comprovantes))
+    assinatura_digital_global = texto_indica_assinatura_digital(texto_holerite) or auth_digital.get("assinatura_digital")
     nomes_holerite = [h.get("nome") for h in holerites_extraidos if h.get("nome")]
     rubricas_por_nome = detectar_rubricas_por_colaborador(path_holerite, nomes_holerite)
+    yolo_ok = yolo_disponivel()
+    deteccoes_yolo = detectar_assinaturas_yolo(path_holerite) if yolo_ok else []
+    assinaturas_yolo_por_nome = (
+        detectar_assinaturas_yolo_por_colaborador(
+            path_holerite,
+            nomes_holerite,
+            deteccoes=deteccoes_yolo,
+        )
+        if yolo_ok
+        else {}
+    )
 
     for hol in holerites_extraidos:
         melhor_idx = None
@@ -548,9 +566,15 @@ def processar_holerite_comprovante(path_holerite, paths_comprovantes, competenci
         diferenca = valor_comprovante - valor_holerite
         valor_ok = abs(diferenca) <= 1
         nome_hol = hol.get("nome")
-        rubrica_visual = bool((rubricas_por_nome.get(nome_hol) or {}).get("assinatura"))
+        rubrica_legacy = bool((rubricas_por_nome.get(nome_hol) or {}).get("assinatura"))
+        rubrica_yolo_info = assinaturas_yolo_por_nome.get(nome_hol) or {}
+        rubrica_yolo = bool(rubrica_yolo_info.get("assinatura"))
+        rubrica_visual = bool(rubrica_legacy or rubrica_yolo)
         assinatura_final = bool(rubrica_visual or hol.get("assinatura_ok") or assinatura_digital_global)
-        if rubrica_visual or hol.get("assinatura_ok"):
+        if rubrica_yolo:
+            assinatura_tipo = "yolo"
+            assinatura_status = "Rubrica (YOLO)"
+        elif rubrica_legacy or hol.get("assinatura_ok"):
             assinatura_tipo = "manual/rubrica"
             assinatura_status = "Rubrica"
         elif assinatura_digital_global:
@@ -584,6 +608,9 @@ def processar_holerite_comprovante(path_holerite, paths_comprovantes, competenci
                 "assinatura": assinatura_final,
                 "assinatura_status": assinatura_status,
                 "assinatura_tipo": assinatura_tipo,
+                "assinatura_origem": "yolo" if rubrica_yolo else ("legacy" if rubrica_legacy else ("digital" if assinatura_tipo == "digital" else "ausente")),
+                "assinatura_confianca": rubrica_yolo_info.get("confianca", 0.0) if rubrica_yolo else 0.0,
+                "assinatura_paginas": rubrica_yolo_info.get("paginas", []) if rubrica_yolo else [],
                 "valor_liquido": valor_holerite,
                 "valor_holerite": valor_holerite,
                 "valor_pago": valor_comprovante,
@@ -631,4 +658,9 @@ def processar_holerite_comprovante(path_holerite, paths_comprovantes, competenci
         "resumo_financeiro": resumo_financeiro,
         "erros": sorted(set(erros)),
         "avisos": [],
+        "autenticacao_digital": auth_digital,
+        "assinatura_yolo": {
+            "modelo_disponivel": yolo_ok,
+            "deteccoes_totais": len(deteccoes_yolo),
+        },
     }

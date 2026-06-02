@@ -5,6 +5,8 @@ import fitz
 import pytesseract
 from PIL import Image
 from utils.ocr import extrair_texto_pdf_inteligente
+from utils.digital_signature_detection import detectar_autenticacao_digital
+from utils.yolo_signature_detection import detectar_assinaturas_yolo, yolo_disponivel
 from validators.vale_alimentacao.parser_va import extrair_dados_va
 
 
@@ -175,8 +177,12 @@ class VAValidator:
         texto_completo = ""
         caminhos_pdf = caminhos_pdf or []
         nomes_arquivos = " ".join([str(c or "") for c in caminhos_pdf]).upper()
+        yolo_modelo_ok = yolo_disponivel()
+        yolo_deteccoes_total = 0
 
         for caminho in caminhos_pdf:
+            if yolo_modelo_ok:
+                yolo_deteccoes_total += len(detectar_assinaturas_yolo(caminho))
             txt = extrair_texto_pdf_inteligente(caminho)
             if not txt:
                 txt = _extrair_texto_fallback_pdf(caminho)
@@ -208,10 +214,12 @@ class VAValidator:
             }
 
         tipo_documento = _detectar_tipo_documento(texto_completo)
+        auth_digital = detectar_autenticacao_digital(texto_completo)
         dados = extrair_dados_va(texto_completo)
         colaboradores = dados.get("colaboradores", [])
         colaboradores_declaracao = _extrair_colaboradores_declaracao(texto_completo)
-        assinatura_digital_ok = _detectar_assinatura_digital(texto_completo, colaboradores_declaracao)
+        assinatura_digital_ok = _detectar_assinatura_digital(texto_completo, colaboradores_declaracao) or auth_digital.get("assinatura_digital")
+        assinatura_yolo_ok = yolo_deteccoes_total > 0
         if colaboradores_declaracao:
             colaboradores = [{"nome": c["nome"], "valor": 0.0, "cpf": c.get("cpf")} for c in colaboradores_declaracao]
         soma = round(float(dados.get("soma_extraida", 0.0) or 0.0), 2)
@@ -289,6 +297,18 @@ class VAValidator:
                     else "Nao foi possivel confirmar assinatura eletronica no documento",
                 }
             )
+            validacoes.append(
+                {
+                    "colaborador": "Assinatura visual (YOLO)",
+                    "valor": 0.0,
+                    "status": "OK" if assinatura_yolo_ok else "Pendente",
+                    "detalhe": (
+                        f"YOLO detectou {yolo_deteccoes_total} assinatura(s)/rubrica(s)"
+                        if assinatura_yolo_ok
+                        else "YOLO nao detectou assinatura visual"
+                    ),
+                }
+            )
 
         else:
             validacoes.append(
@@ -333,5 +353,11 @@ class VAValidator:
                 "valores_encontrados": valores_encontrados,
                 "valores_conferem": valores_conferem,
                 "conferido": conferido,
+            },
+            "autenticacao_digital": auth_digital,
+            "assinatura_yolo": {
+                "modelo_disponivel": yolo_modelo_ok,
+                "detectada": assinatura_yolo_ok,
+                "deteccoes_totais": yolo_deteccoes_total,
             },
         }

@@ -13,7 +13,9 @@ cd "$APP_DIR"
 log() { echo -e "\n==> $*"; }
 
 log "Rebuild + restart dos servicos (validador + yolo)"
-docker compose "${COMPOSE[@]}" up -d --build --remove-orphans
+# --force-recreate garante que o servico yolo (que so referencia a imagem)
+# tambem suba na imagem recem-buildada, e nao na antiga.
+docker compose "${COMPOSE[@]}" up -d --build --force-recreate --remove-orphans
 
 log "Removendo imagens orfas"
 docker image prune -f
@@ -21,9 +23,14 @@ docker image prune -f
 log "Status dos containers"
 docker compose "${COMPOSE[@]}" ps
 
-log "Healthcheck local"
+log "Healthcheck local (aguarda os servicos subirem)"
 for url in http://127.0.0.1:8000/ http://127.0.0.1:8010/; do
-  code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 25 "$url" || true)"
+  code=000
+  for _ in $(seq 1 20); do
+    code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "$url" || true)"
+    [ "$code" = "200" ] && break
+    sleep 3
+  done
   echo "    $url -> HTTP $code"
 done
 

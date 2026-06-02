@@ -1,0 +1,6 @@
+# Scripts shell e arquivos de deploy DEVEM ser LF (rodam em Linux no servidor).
+*.sh text eol=lf
+deploy.sh text eol=lf
+Dockerfile text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf

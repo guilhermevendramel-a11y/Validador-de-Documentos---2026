@@ -1,0 +1,50 @@
+# Dependencias instaladas dentro do container (NUNCA copiar do host)
+node_modules/
+.next/
+**/__pycache__/
+*.pyc
+venv/
+.venv/
+
+# Controle de versao / IDE / CI
+.git/
+.gitignore
+.github/
+.vscode/
+.idea/
+
+# Ferramentas locais (Node/Git portateis adicionados ao PATH local)
+tools/
+
+# Datasets e modelos pesados (montados como volume no servidor)
+datasets/
+models/
+runs/
+*.pt
+
+# Dados gerados / temporarios em runtime
+uploads/
+processed_uploads/
+uploaded_files/
+outputs/
+output/
+results/
+tmp/
+temp/
+.cache/
+data/document_learning.json
+
+# Segredos e logs
+.env
+.env.local
+*.log
+*.out.log
+*.err.log
+
+# Arquivos de scratch/experimentos
+__tmp_*.py
+__tmp_*.json
+
+# Docs que nao afetam runtime
+docs/
+*.md

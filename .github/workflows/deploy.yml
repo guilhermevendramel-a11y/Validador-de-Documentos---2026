@@ -1,0 +1,71 @@
+name: Deploy (validador + yolo)
+
+# Deploy automatico no push para main:
+#  1. envia o codigo para o servidor via rsync (preservando .env, models/, datasets/);
+#  2. roda deploy.sh no servidor, que rebuilda a imagem e reinicia os 2 containers.
+#
+# Secrets necessarios no repositorio (Settings -> Secrets and variables -> Actions):
+#   SSH_HOST    -> host/IP do servidor (ex.: 32.193.252.43)
+#   SSH_USER    -> usuario SSH (ex.: ubuntu)
+#   SSH_KEY     -> chave PRIVADA de deploy (conteudo de ~/.ssh/gha_deploy no servidor)
+#   SSH_PORT    -> (opcional) porta SSH; padrao 22
+#   DEPLOY_PATH -> (opcional) caminho no servidor; padrao /var/www/validador_docs_github
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+concurrency:
+  group: deploy-validador-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      SSH_PORT: ${{ secrets.SSH_PORT || '22' }}
+      DEPLOY_PATH: ${{ secrets.DEPLOY_PATH || '/var/www/validador_docs_github' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar chave SSH
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -p "$SSH_PORT" -H "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Enviar codigo (rsync)
+        run: |
+          rsync -az --delete \
+            -e "ssh -i ~/.ssh/deploy_key -p $SSH_PORT" \
+            --exclude='.git/' \
+            --exclude='.github/' \
+            --exclude='node_modules/' \
+            --exclude='.next/' \
+            --exclude='.env' \
+            --exclude='models/' \
+            --exclude='datasets/' \
+            --exclude='runs/' \
+            --exclude='__pycache__/' \
+            --exclude='*.pyc' \
+            --exclude='tools/' \
+            --exclude='uploads/' \
+            --exclude='processed_uploads/' \
+            --exclude='uploaded_files/' \
+            --exclude='outputs/' \
+            --exclude='output/' \
+            --exclude='results/' \
+            --exclude='.cache/' \
+            --exclude='tmp/' \
+            --exclude='temp/' \
+            --exclude='__tmp_*' \
+            ./ "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:$DEPLOY_PATH/"
+
+      - name: Deploy (rebuild + restart)
+        run: |
+          ssh -i ~/.ssh/deploy_key -p "$SSH_PORT" \
+            "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
+            "cd '$DEPLOY_PATH' && chmod +x deploy.sh && ./deploy.sh"

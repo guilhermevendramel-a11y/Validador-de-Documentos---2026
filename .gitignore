@@ -28,3 +28,5 @@ venv/
 *.err.log
 yolov8n.pt
 .cache/cartao_ponto/*
+# Ignorar conteúdo de .cache/cartao_ponto
+.cache/cartao_ponto/

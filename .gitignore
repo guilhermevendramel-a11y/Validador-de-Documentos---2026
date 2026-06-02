@@ -27,3 +27,4 @@ venv/
 *.out.log
 *.err.log
 yolov8n.pt
+.cache/cartao_ponto/*

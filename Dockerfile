@@ -33,14 +33,16 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
 # ===============================
 # COPIA DEPENDENCIAS
 # ===============================
-COPY requirements.txt .
+# Usa o requirements ENXUTO do servidor (Linux). O requirements.txt completo
+# e apenas para dev local (Windows) e nao entra na imagem.
+COPY requirements-server.txt .
 COPY package.json .
 
 # ===============================
 # INSTALA PYTHON + NODE
 # ===============================
 RUN pip install --upgrade pip
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements-server.txt
 RUN npm install
 
 # ===============================

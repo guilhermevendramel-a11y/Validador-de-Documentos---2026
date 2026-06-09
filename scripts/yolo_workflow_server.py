@@ -205,7 +205,7 @@ def index():
         </label>
         <button id="undoBtn" class="secondary">Desfazer caixa</button>
         <button id="clearBtn" class="secondary">Limpar imagem</button>
-        <button id="clearPageBtn" class="secondary">Limpar pÃ¡gina</button>
+        <button id="clearPageBtn" class="secondary">Limpar página</button>
         <button id="saveLabelBtn">Salvar anotacao YOLO</button>
         <span id="selectedName" class="small">Nenhuma imagem selecionada.</span>
       </div>

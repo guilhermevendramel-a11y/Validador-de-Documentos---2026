@@ -1,10 +1,15 @@
 # Servico do YOLO (validador2.portalmse.com.br), porta 8010.
-# Reaproveita a MESMA imagem buildada pelo servico "validador" e apenas troca o comando.
+# Usa uma imagem PROPRIA (Dockerfile.yolo) que estende a imagem base do servico
+# "validador" e adiciona o stack de ML (torch CPU + ultralytics) para o /api/train.
+# A imagem base precisa existir antes deste build (o deploy.sh garante a ordem).
 # Suba sempre junto com o docker-compose.yml:
 #   docker compose -f docker-compose.yml -f docker-compose.yolo.yml up -d --build
 services:
   validador-yolo:
-    image: validador_docs_github-validador:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.yolo
+    image: validador-yolo:latest
     container_name: validador-yolo-mse
     restart: unless-stopped
     working_dir: /app

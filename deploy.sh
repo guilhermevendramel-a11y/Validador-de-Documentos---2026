@@ -12,9 +12,13 @@ COMPOSE=(-f docker-compose.yml -f docker-compose.yolo.yml)
 cd "$APP_DIR"
 log() { echo -e "\n==> $*"; }
 
+log "Build da imagem base (validador) primeiro"
+# O Dockerfile.yolo faz FROM validador_docs_github-validador:latest, entao a
+# imagem base PRECISA existir antes do build do servico yolo.
+docker compose -f docker-compose.yml build validador
+
 log "Rebuild + restart dos servicos (validador + yolo)"
-# --force-recreate garante que o servico yolo (que so referencia a imagem)
-# tambem suba na imagem recem-buildada, e nao na antiga.
+# --force-recreate garante que o servico yolo suba na imagem recem-buildada.
 docker compose "${COMPOSE[@]}" up -d --build --force-recreate --remove-orphans
 
 log "Removendo imagens orfas"

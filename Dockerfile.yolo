@@ -1,0 +1,17 @@
+# ===============================
+# IMAGEM DO YOLO (validador2.portalmse.com.br, porta 8010)
+# ===============================
+# Estende a imagem base do servico "validador" (Python + Node/Next + OCR + app)
+# e adiciona APENAS o stack de ML pesado (torch CPU + ultralytics) que o endpoint
+# /api/train do yolo_workflow_server precisa.
+#
+# Mantem a imagem do validador (8000) enxuta: o torch/ultralytics vivem so aqui.
+# A imagem base e produzida pelo servico "validador" do docker-compose.yml
+# (tag: validador_docs_github-validador:latest) e DEVE ser buildada antes desta.
+FROM validador_docs_github-validador:latest
+
+# As wheels do torch +cpu ficam no indice CPU do PyTorch.
+# requirements-yolo.txt ja foi copiado para /app pelo "COPY . ." da imagem base.
+RUN pip install --no-cache-dir \
+    --extra-index-url https://download.pytorch.org/whl/cpu \
+    -r requirements-yolo.txt

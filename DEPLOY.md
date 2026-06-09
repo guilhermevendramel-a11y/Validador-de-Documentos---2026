@@ -19,7 +19,8 @@ nginx 443 ── validador.portalmse.com.br  ─> 127.0.0.1:8000  (Next.js)  -> 
 | validador.portalmse.com.br    | 8000  | `validador-mse`      | `docker-compose.yml`       |
 | validador2.portalmse.com.br   | 8010  | `validador-yolo-mse` | `docker-compose.yolo.yml`  |
 
-- `Dockerfile` — imagem unica (Python + Node/Next + OCR). O YOLO reusa a mesma imagem trocando o comando.
+- `Dockerfile` — imagem base do validador (Python + Node/Next + OCR), enxuta (`requirements-server.txt`).
+- `Dockerfile.yolo` — imagem do YOLO: estende a base e adiciona o stack de ML (`requirements-yolo.txt`: torch CPU + ultralytics) para o `/api/train` do validador2.
 - `.dockerignore` — mantem o contexto de build enxuto.
 - `deploy.sh` — sobe os dois servicos: `docker compose -f docker-compose.yml -f docker-compose.yolo.yml up -d --build`.
 - `.github/workflows/deploy.yml` — o pipeline (rsync + ssh).
@@ -28,7 +29,7 @@ nginx 443 ── validador.portalmse.com.br  ─> 127.0.0.1:8000  (Next.js)  -> 
 
 ## Servidor (ja provisionado)
 
-- Host: `32.193.252.43` (AWS, Ubuntu 26.04), usuario `ubuntu` (no grupo `docker`, sudo sem senha).
+- Host: `35.168.67.97` (AWS, Ubuntu 26.04), usuario `ubuntu` (no grupo `docker`, sudo sem senha).
 - Docker + Compose, nginx 1.28, Certbot (cert SAN cobrindo os dois subdominios).
 - Projeto em `/var/www/validador_docs_github` (dono `ubuntu`), com `.env` real e `models/`/`datasets/` persistidos.
 - Chave de deploy `~/.ssh/gha_deploy` ja autorizada para o GitHub Actions.
@@ -37,13 +38,13 @@ nginx 443 ── validador.portalmse.com.br  ─> 127.0.0.1:8000  (Next.js)  -> 
 
 | Secret        | Valor                                                        |
 |---------------|--------------------------------------------------------------|
-| `SSH_HOST`    | `32.193.252.43`                                              |
+| `SSH_HOST`    | `35.168.67.97`                                               |
 | `SSH_USER`    | `ubuntu`                                                     |
 | `SSH_KEY`     | conteudo da chave PRIVADA `~/.ssh/gha_deploy` do servidor    |
 | `SSH_PORT`    | (opcional) `22`                                              |
 | `DEPLOY_PATH` | (opcional) `/var/www/validador_docs_github`                  |
 
-> Para obter a chave privada: `ssh ubuntu@32.193.252.43 'cat ~/.ssh/gha_deploy'`
+> Para obter a chave privada: `ssh ubuntu@35.168.67.97 'cat ~/.ssh/gha_deploy'`
 > e cole o conteudo inteiro (com as linhas BEGIN/END) no secret `SSH_KEY`.
 
 ## Disparar o deploy
@@ -53,7 +54,7 @@ Push na `main` (ou **Actions -> Deploy (validador + yolo) -> Run workflow**).
 ## Operacao manual no servidor
 
 ```bash
-ssh ubuntu@32.193.252.43
+ssh ubuntu@35.168.67.97
 cd /var/www/validador_docs_github
 ./deploy.sh                  # rebuild + restart dos 2 servicos
 docker compose -f docker-compose.yml -f docker-compose.yolo.yml ps

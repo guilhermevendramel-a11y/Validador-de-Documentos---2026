@@ -5,7 +5,7 @@ name: Deploy (validador + yolo)
 #  2. roda deploy.sh no servidor, que rebuilda a imagem e reinicia os 2 containers.
 #
 # Secrets necessarios no repositorio (Settings -> Secrets and variables -> Actions):
-#   SSH_HOST    -> host/IP do servidor (ex.: 32.193.252.43)
+#   SSH_HOST    -> host/IP do servidor (ex.: 35.168.67.97)
 #   SSH_USER    -> usuario SSH (ex.: ubuntu)
 #   SSH_KEY     -> chave PRIVADA de deploy (conteudo de ~/.ssh/gha_deploy no servidor)
 #   SSH_PORT    -> (opcional) porta SSH; padrao 22

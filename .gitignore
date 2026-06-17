@@ -29,3 +29,5 @@ venv/
 yolov8n.pt
 # Ignorar conteúdo de .cache/cartao_ponto
 .cache/cartao_ponto/
+# Ignorar cache de OCR
+data/ocr_cache/

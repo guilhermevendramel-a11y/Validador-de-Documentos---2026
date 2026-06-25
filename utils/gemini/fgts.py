@@ -40,7 +40,7 @@ Verifique se existem:
 - Relação de Categorias
 - Relação de Estabelecimentos
 - Relação de Tipos de Valor
-- Relação de Tomadores
+- Relação de Tomadores de Serviço
 
 ⚠️ REGRAS IMPORTANTES:
 - Corrija erros de OCR automaticamente

@@ -8,7 +8,6 @@ def _normalizar_nome(nome):
 
 
 def validar_holerite(dados, competencia_esperada=None):
-
     erros = []
     avisos = []
 
@@ -19,13 +18,13 @@ def validar_holerite(dados, competencia_esperada=None):
     valor_c = dados.get("valor_comprovante")
 
     competencia = dados.get("competencia")
+    data_ok = bool(dados.get("data_assinatura") or dados.get("data_assinatura_extraida") or dados.get("data_recibo"))
 
     # =========================
     # NOME
     # =========================
     if not nome_h or not nome_c:
-        erros.append("Nome não identificado")
-
+        erros.append("Nome nao identificado")
     elif fuzz.token_set_ratio(_normalizar_nome(nome_h), _normalizar_nome(nome_c)) < 85:
         erros.append("Nome divergente")
 
@@ -33,19 +32,20 @@ def validar_holerite(dados, competencia_esperada=None):
     # VALOR
     # =========================
     if not valor_h or not valor_c:
-        erros.append("Valor não identificado")
-
+        erros.append("Valor nao identificado")
     elif abs(valor_h - valor_c) > 1:
         erros.append("Valor divergente")
 
     # =========================
-    # COMPETÊNCIA
+    # COMPETENCIA
     # =========================
     if not competencia:
-        avisos.append("Competência não identificada")
-
+        avisos.append("Competencia nao identificada")
     elif competencia_esperada and competencia != competencia_esperada:
-        erros.append("Competência divergente")
+        erros.append("Competencia divergente")
+
+    if not data_ok:
+        erros.append("Data nao identificada")
 
     # =========================
     # STATUS
@@ -61,5 +61,5 @@ def validar_holerite(dados, competencia_esperada=None):
         "status": status,
         "erros": erros,
         "avisos": avisos,
-        "dados": dados
+        "dados": dados,
     }

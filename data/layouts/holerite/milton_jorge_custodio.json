@@ -1,0 +1,22 @@
+{
+  "id": "holerite_kiplaca_milton_jorge_custodio_jan_2026",
+  "tipo_documento": "holerite",
+  "descricao": "Perfil dedicado para holerite escaneado com comprovante no topo e recibo de salario inclinado na metade inferior.",
+  "match": {
+    "file_hash_sha256": "8d06d002bf544e1707d7057be8e52b0004a384f95e9abf50f706eb493d819225",
+    "filename_contains": [
+      "MILTON JORGE CUSTODIO.pdf"
+    ]
+  },
+  "ocr_region": [0.02, 0.55, 0.97, 0.985],
+  "campos": {
+    "empresa": { "label": "EMPRESA", "bbox": [0.02, 0.58, 0.44, 0.67], "perfil": "documento_claro", "psm": 6 },
+    "titulo": { "label": "TITULO", "bbox": [0.56, 0.58, 0.93, 0.65], "perfil": "documento_claro", "psm": 7 },
+    "competencia": { "label": "COMPETENCIA", "bbox": [0.73, 0.61, 0.92, 0.66], "perfil": "documento_claro", "psm": 7 },
+    "nome_funcionario": { "label": "NOME DO FUNCIONARIO", "bbox": [0.03, 0.64, 0.53, 0.71], "perfil": "documento_claro", "psm": 6 },
+    "eventos": { "label": "EVENTOS", "bbox": [0.03, 0.70, 0.86, 0.86], "perfil": "tabela", "psm": 6 },
+    "totais": { "label": "TOTAIS", "bbox": [0.57, 0.84, 0.94, 0.94], "perfil": "tabela", "psm": 6 },
+    "bases": { "label": "BASES", "bbox": [0.02, 0.92, 0.94, 0.98], "perfil": "tabela", "psm": 6 },
+    "assinatura_data": { "label": "ASSINATURA E DATA", "bbox": [0.88, 0.60, 0.985, 0.96], "perfil": "documento_claro", "psm": 5 }
+  }
+}

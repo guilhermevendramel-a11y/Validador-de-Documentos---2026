@@ -1,11 +1,11 @@
 <div class="card p-4 shadow-sm border-danger">
-    <h4 class="mb-3" style="color: #8b0000;"><i class="fas fa-shield-alt"></i> APÓLICE DO SEGURO DE VIDA</h4>
+    <h4 class="mb-3" style="color: #8b0000;"><i class="fas fa-shield-alt"></i> Ap&oacute;lice do Seguro de Vida</h4>
     
     <div class="row g-3">
         <div class="col-12">
-            <label class="form-label fw-bold">Arquivos (Apólice + Comprovante):</label>
+            <label class="form-label fw-bold">Arquivos (Ap&oacute;lice + Comprovante):</label>
             <input type="file" id="seguro_files" class="form-control" multiple accept=".pdf">
-            <small class="text-muted">Análise automática de empresa, período, tipo de seguro e quitação via IA.</small>
+            <small class="text-muted">An&aacute;lise autom&aacute;tica de empresa, per&iacute;odo, tipo de seguro e quita&ccedil;&atilde;o via IA.</small>
         </div>
         <div class="col-12 mt-3">
             <button class="btn w-100 fw-bold text-white shadow" onclick="validarSeguro()" style="background-color: #8b0000; border: none; height: 50px;">
@@ -35,7 +35,7 @@ async function validarSeguro() {
     if (filesInput.files.length === 0) return alert("Selecione os arquivos do Seguro.");
 
     const formData = new FormData();
-    // 'comprovantes' é o nome que o app.py espera
+    // 'comprovantes' &eacute; o nome que o app.py espera
     for (let f of filesInput.files) { formData.append('comprovantes', f); }
 
     const resDiv = document.getElementById('res_seguro');
@@ -43,7 +43,7 @@ async function validarSeguro() {
     
     resDiv.classList.remove('d-none');
     msgStatus.className = "fw-bold text-muted";
-    msgStatus.innerText = "IA processando apólice e comprovantes...";
+    msgStatus.innerText = "IA processando ap&oacute;lice e comprovantes...";
 
     try {
         const resp = await fetch('/validar_seguro_vida', { method: 'POST', body: formData });
@@ -51,14 +51,14 @@ async function validarSeguro() {
 
         // Mapeamento dos dados vindos do app.py
         const resumo = data.resumo_financeiro;
-        const validacaoPrincipal = data.validacoes[0] || { colaborador: "Não Identificado", detalhe: "Nenhum dado extraído" };
+        const validacaoPrincipal = data.validacoes[0] || { colaborador: "N&atilde;o Identificado", detalhe: "Nenhum dado extra&iacute;do" };
 
         msgStatus.className = "fw-bold text-success";
-        msgStatus.innerText = "Análise Concluída com Sucesso";
+        msgStatus.innerText = "An&aacute;lise Conclu&iacute;da com Sucesso";
 
         // Preenchendo os campos com os dados da IA
         document.getElementById('seg_empresa').innerText = validacaoPrincipal.colaborador; // Nome da Empresa/Seguradora
-        document.getElementById('seg_periodo').innerText = "Extraído via IA"; 
+        document.getElementById('seg_periodo').innerText = "Extra&iacute;do via IA"; 
         document.getElementById('seg_tipo').innerText = "Seguro de Vida em Grupo";
         document.getElementById('seg_valor').innerText = `R$ ${resumo.total_boleto.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
         document.getElementById('seg_detalhe').innerText = validacaoPrincipal.detalhe;
@@ -66,7 +66,7 @@ async function validarSeguro() {
     } catch (e) {
         console.error(e);
         msgStatus.className = "fw-bold text-danger";
-        msgStatus.innerText = "Erro técnico na validação IA.";
+        msgStatus.innerText = "Erro t&eacute;cnico na valida&ccedil;&atilde;o IA.";
     }
 }
 </script>

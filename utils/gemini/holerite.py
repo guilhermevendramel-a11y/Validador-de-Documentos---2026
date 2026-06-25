@@ -3,6 +3,8 @@ import json
 import re
 import google.generativeai as genai
 
+from utils.prompt_policy import aplicar_politica_prompt
+
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
 MODEL = genai.GenerativeModel("gemini-1.5-flash")
@@ -27,7 +29,7 @@ def extrair_holerite_inteligente(texto):
         return {}
 
     try:
-        response = MODEL.generate_content(PROMPT + "\n\n" + texto)
+        response = MODEL.generate_content(aplicar_politica_prompt(PROMPT + "\n\n" + texto))
         txt = response.text.strip()
 
         txt = re.sub(r"```json|```", "", txt).strip()

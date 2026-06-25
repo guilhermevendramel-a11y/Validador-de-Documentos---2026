@@ -1,0 +1,22 @@
+{
+  "id": "holerite_kiplaca_sidney_pereira_costa_jan_2026",
+  "tipo_documento": "holerite",
+  "descricao": "Perfil dedicado para holerite escaneado com comprovante no topo e tabela de eventos mais longa no recibo.",
+  "match": {
+    "file_hash_sha256": "262e7b25b52a697a0dbcc6d0e990bf1434ecedf2fce93ea46e2082b1728857ee",
+    "filename_contains": [
+      "SIDNEY PEREIRA COSTA.pdf"
+    ]
+  },
+  "ocr_region": [0.02, 0.55, 0.97, 0.985],
+  "campos": {
+    "empresa": { "label": "EMPRESA", "bbox": [0.02, 0.58, 0.44, 0.67], "perfil": "documento_claro", "psm": 6 },
+    "titulo": { "label": "TITULO", "bbox": [0.56, 0.58, 0.93, 0.65], "perfil": "documento_claro", "psm": 7 },
+    "competencia": { "label": "COMPETENCIA", "bbox": [0.73, 0.61, 0.92, 0.66], "perfil": "documento_claro", "psm": 7 },
+    "nome_funcionario": { "label": "NOME DO FUNCIONARIO", "bbox": [0.03, 0.64, 0.53, 0.71], "perfil": "documento_claro", "psm": 6 },
+    "eventos": { "label": "EVENTOS", "bbox": [0.03, 0.70, 0.86, 0.87], "perfil": "tabela", "psm": 6 },
+    "totais": { "label": "TOTAIS", "bbox": [0.57, 0.84, 0.94, 0.94], "perfil": "tabela", "psm": 6 },
+    "bases": { "label": "BASES", "bbox": [0.02, 0.92, 0.94, 0.98], "perfil": "tabela", "psm": 6 },
+    "assinatura_data": { "label": "ASSINATURA E DATA", "bbox": [0.88, 0.60, 0.985, 0.96], "perfil": "documento_claro", "psm": 5 }
+  }
+}

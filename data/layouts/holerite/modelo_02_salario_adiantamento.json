@@ -1,0 +1,21 @@
+{
+  "id": "holerite_modelo_02_salario_adiantamento",
+  "tipo_documento": "holerite",
+  "descricao": "Layout de referencia para holerite modelo 02 com Recibo de Pagamento de Salario e Adiantamento no mesmo PDF, usando Liquido a Receber como valor principal.",
+  "match": {
+    "file_hash_sha256": "06445db2f95e70f9db349cda669d8822cabd701057d2d8a065e7d17ec57d1a4d",
+    "filename_contains": [
+      "02 - Holerite de salário e Adiantamento.pdf"
+    ]
+  },
+  "ocr_region": [0.02, 0.02, 0.98, 0.98],
+  "campos": {
+    "recibo_salario": { "label": "RECIBO DE PAGAMENTO DE SALARIO", "bbox": [0.03, 0.03, 0.70, 0.16], "perfil": "documento_claro", "psm": 6 },
+    "adiantamento": { "label": "ADIANTAMENTO", "bbox": [0.03, 0.50, 0.70, 0.64], "perfil": "documento_claro", "psm": 6 },
+    "nome_funcionario": { "label": "NOME DO FUNCIONARIO", "bbox": [0.05, 0.14, 0.52, 0.26], "perfil": "documento_claro", "psm": 6 },
+    "valor_liquido": { "label": "LÍQUIDO A RECEBER", "bbox": [0.42, 0.30, 0.70, 0.42], "perfil": "documento_claro", "psm": 6 },
+    "valor_liquido_adiantamento": { "label": "LÍQUIDO A RECEBER", "bbox": [0.42, 0.72, 0.70, 0.84], "perfil": "documento_claro", "psm": 6 },
+    "assinatura_direita": { "label": "ASSINATURA E DATA", "bbox": [0.78, 0.10, 0.98, 0.46], "perfil": "documento_claro", "psm": 5 },
+    "assinatura_rodape": { "label": "ASSINATURA OU VISTO", "bbox": [0.36, 0.86, 0.96, 0.98], "perfil": "documento_claro", "psm": 5 }
+  }
+}

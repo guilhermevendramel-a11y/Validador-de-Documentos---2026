@@ -16,6 +16,7 @@ if str(ROOT_DIR) not in sys.path:
 
 from utils.gemini.cartao_ponto import SYSTEM_PROMPT_CARTAO_PONTO, limpar_json
 from utils.gemini_service import modelos_disponiveis
+from utils.prompt_policy import aplicar_politica_prompt
 from utils.tesseract_config import pytesseract
 
 
@@ -322,7 +323,7 @@ def inferir_com_ia(caminho=None, texto=None):
             partes.append(f"TEXTO OCR OU CONTEUDO ESTRUTURADO:\n{texto or ''}")
 
         response = model.generate_content(
-            partes,
+            [aplicar_politica_prompt(partes[0])] + partes[1:],
             generation_config={
                 "temperature": 0.05,
                 "response_mime_type": "application/json",

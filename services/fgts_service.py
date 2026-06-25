@@ -88,7 +88,7 @@ def processar_fgts(caminho_relatorio, caminho_guia=None, cno_digitado=None, comp
         "relacao_categorias": "RELAÇÃO DE CATEGORIAS" in texto_upper or "RELAÃ‡ÃƒO DE CATEGORIAS" in texto_upper,
         "relacao_estabelecimentos": "RELAÇÃO DE ESTABELECIMENTOS" in texto_upper or "RELAÃ‡ÃƒO DE ESTABELECIMENTOS" in texto_upper,
         "relacao_tipo_valor": "RELAÇÃO DE TIPOS DE VALOR" in texto_upper or "RELAÃ‡ÃƒO DE TIPOS DE VALOR" in texto_upper,
-        "relacao_tomadores": "RELAÇÃO DE TOMADORES" in texto_upper or "RELAÃ‡ÃƒO DE TOMADORES" in texto_upper,
+        "relacao_tomadores": "RELAÇÃO DE TOMADORES" in texto_upper or "RELAÇÃO DE TOMADORES DE SERVIÇO" in texto_upper or "RELAÃ‡ÃƒO DE TOMADORES" in texto_upper,
     }
 
     competencia_doc = dados_relatorio.get("competencia") or extrair_competencia(texto_relatorio)

@@ -4,7 +4,7 @@ def validar_folha_pagamento(texto, competencia_esperada):
     # 1. Extração de dados via regras.py
     empresa = extrair_empresa(texto)
     competencia_doc = extrair_competencia_folha(texto)
-    lista_nomes = extrair_colaboradores(texto)
+    lista_nomes = extrair_colaboradores(texto, empresa)
 
     # 2. Critérios de Validação
     empresa_ok = empresa is not None

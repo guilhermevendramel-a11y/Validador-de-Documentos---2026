@@ -10,6 +10,8 @@ import cv2
 import numpy as np
 from dotenv import load_dotenv
 
+from utils.prompt_policy import aplicar_politica_prompt
+
 load_dotenv(override=True)
 
 
@@ -156,7 +158,7 @@ def analisar_pagina_cartao_ponto_openai_vision(
         nomes_txt = "\nA lista de nomes esperados é:\n" + json.dumps(nomes_esperados, ensure_ascii=False)
 
     if out["tipo_pagina"] == "frente":
-        prompt = f"""
+        prompt = aplicar_politica_prompt(f"""
 Você está analisando uma página inteira de cartão ponto ou folha de ponto.
 Layout sugerido: {layout_in or "desconhecido"}.
 Tarefas:
@@ -187,9 +189,9 @@ Regras obrigatórias para nome:
 - se houver dúvida, ruído ou baixa legibilidade, retorne nome vazio e nome_encontrado=false;
 - confianca deve ser baixa (<0.78) quando o nome estiver duvidoso.
 Competência esperada: {competencia_esperada or "não informada"}.
-"""
+""")
     else:
-        prompt = """
+        prompt = aplicar_politica_prompt("""
 Você está analisando uma página inteira de cartão ponto ou folha de ponto.
 Esta página tende a ser VERSO/2ª QUINZENA ou complemento de assinatura.
 Tarefas:
@@ -209,7 +211,7 @@ Responda somente JSON válido:
   "motivo": "",
   "avisos": []
 }
-"""
+""")
 
     content = [
         {"type": "input_text", "text": prompt},

@@ -366,24 +366,38 @@ from services.holerite_service import processar_holerite_comprovante
 @app.route("/validar_holerite", methods=["POST"])
 def validar_holerite_route():
 
-    holerite = request.files.get("holerite")
+    holerites = request.files.getlist("holerite")
+    if not holerites:
+        holerite_unico = request.files.get("holerite")
+        holerites = [holerite_unico] if holerite_unico else []
+
     comprovantes = request.files.getlist("comprovantes")
+    if not comprovantes:
+        comprovante_unico = request.files.get("comprovantes")
+        comprovantes = [comprovante_unico] if comprovante_unico else []
     competencia = request.form.get("competencia")
 
-    if not holerite or not comprovantes:
+    if not holerites or not comprovantes:
         return jsonify({"status": "Erro", "mensagem": "Envie os arquivos"})
 
-    path_h = f"/tmp/{uuid.uuid4()}_{holerite.filename}"
-    holerite.save(path_h)
+    paths_holerite = []
+    for holerite in holerites:
+        if not holerite:
+            continue
+        path_h = f"/tmp/{uuid.uuid4()}_{holerite.filename}"
+        holerite.save(path_h)
+        paths_holerite.append(path_h)
 
     paths = []
 
     for c in comprovantes:
+        if not c:
+            continue
         path = f"/tmp/{uuid.uuid4()}_{c.filename}"
         c.save(path)
         paths.append(path)
 
-    resultado = processar_holerite_comprovante(path_h, paths, competencia)
+    resultado = processar_holerite_comprovante(paths_holerite, paths, competencia)
 
     return jsonify(resultado)
 

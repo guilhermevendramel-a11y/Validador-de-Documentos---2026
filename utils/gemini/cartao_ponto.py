@@ -7,6 +7,7 @@ import numpy as np
 from PIL import Image
 
 from utils.gemini_service import chamar_gemini, modelos_disponiveis
+from utils.prompt_policy import aplicar_politica_prompt
 
 
 SYSTEM_PROMPT_CARTAO_PONTO = """
@@ -131,7 +132,7 @@ def extrair_cartao_ponto_pdf(caminho_pdf):
         modelo = modelos_disponiveis()[0]
         model = genai.GenerativeModel(modelo)
         response = model.generate_content(
-            [SYSTEM_PROMPT_CARTAO_PONTO, arquivo],
+            [aplicar_politica_prompt(SYSTEM_PROMPT_CARTAO_PONTO), arquivo],
             generation_config={"temperature": 0.05},
         )
 
@@ -263,7 +264,7 @@ Schema obrigatorio:
 """
     try:
         model = genai.GenerativeModel(modelos_disponiveis()[0])
-        payload = [prompt] + [img for _k, img in imagens_alvo]
+        payload = [aplicar_politica_prompt(prompt)] + [img for _k, img in imagens_alvo]
         response = model.generate_content(payload, generation_config={"temperature": 0.05})
         raw = limpar_json(getattr(response, "text", "") or "")
         dados = json.loads(raw) if raw else {}

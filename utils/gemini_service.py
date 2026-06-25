@@ -5,6 +5,8 @@ import re
 import google.generativeai as genai
 from dotenv import load_dotenv
 
+from utils.prompt_policy import aplicar_politica_prompt
+
 
 load_dotenv()
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
@@ -49,6 +51,7 @@ def modelos_disponiveis():
 
 
 def chamar_gemini(prompt, generation_config=None):
+    prompt = aplicar_politica_prompt(prompt)
     modelos = modelos_disponiveis()
 
     config = generation_config or {

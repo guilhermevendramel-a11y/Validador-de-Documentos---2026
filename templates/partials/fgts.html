@@ -103,14 +103,14 @@ document.getElementById("formFGTS").addEventListener("submit", async function(e)
                 "Relação de Categorias": data.documentos.relacao_categorias,
                 "Relação de Estabelecimentos": data.documentos.relacao_estabelecimentos,
                 "Relação de Tipos de Valor": data.documentos.relacao_tipo_valor,
-                "Relação de Tomadores": data.documentos.relacao_tomadores
+                "Relação de Tomadores de Serviço": data.documentos.relacao_tomadores
             };
 
             for (const nome in docs) {
                 html += `
                     <tr>
                         <td>${nome}</td>
-                        <td>${docs[nome] ? "✔️" : "❌"}</td>
+                        <td class="${docs[nome] ? "ok" : "erro"}">${docs[nome] ? "OK" : "Pendente"}</td>
                     </tr>
                 `;
             }

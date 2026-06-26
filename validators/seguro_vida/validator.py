@@ -3,6 +3,7 @@ import unicodedata
 from rapidfuzz import fuzz
 
 from utils.ocr import extrair_texto_pdf_inteligente
+from validators.seguro_vida.parser import extrair_dados_seguro_universal
 
 
 def _sem_acento(texto):
@@ -143,6 +144,50 @@ def _extrair_pagamentos_comprovante(texto):
             pagamentos.append({"nome": nome, "valor": valor})
 
     return pagamentos
+
+
+def _quebrar_paginas_texto(texto):
+    return [bloco.strip() for bloco in re.split(r"\f", str(texto or "")) if bloco.strip()]
+
+
+def _extrair_pagamento_ultima_pagina(texto_apolice):
+    paginas = _quebrar_paginas_texto(texto_apolice)
+    if not paginas:
+        return []
+
+    paginas_busca = list(reversed(paginas[-3:]))
+    for pagina in paginas_busca:
+        pagina_norm = _sem_acento(pagina).upper()
+        if not any(k in pagina_norm for k in ["COMPROVANTE", "PAGAMENTO", "PREMIO", "AUTENTICACAO", "TRANSFERENCIA", "PIX", "TED", "TEF"]):
+            continue
+
+        pagamentos = _extrair_pagamentos_comprovante(pagina)
+        if pagamentos:
+            return pagamentos
+
+        dados = extrair_dados_seguro_universal(pagina)
+        valor = _valor_float(dados.get("valor_pago"))
+        if valor > 0:
+            return [{"nome": None, "valor": valor}]
+
+        linhas = [l.strip() for l in pagina.splitlines() if l.strip()]
+        for i, linha in enumerate(linhas):
+            linha_norm = _sem_acento(linha).upper()
+            if not any(k in linha_norm for k in ["VALOR DO PAGAMENTO", "PREMIO LIQUIDO", "VALOR LIQUIDO", "COMPROVANTE", "PAGAMENTO", "PAGO EM"]):
+                continue
+            trecho = " ".join(linhas[i:min(len(linhas), i + 3)])
+            m = re.search(r"R\$\s*([\d\.,]+)", trecho, re.IGNORECASE)
+            if m:
+                valor = _valor_float(m.group(1))
+                if valor > 0:
+                    return [{"nome": None, "valor": valor}]
+            m = re.search(r"(?:VALOR|PAGAMENTO)\s*[:\-]?\s*([\d]{1,3}(?:\.\d{3})*,\d{2})", trecho, re.IGNORECASE)
+            if m:
+                valor = _valor_float(m.group(1))
+                if valor > 0:
+                    return [{"nome": None, "valor": valor}]
+
+    return []
 
 
 def _tem_indicio_pagamento(texto):
@@ -292,6 +337,8 @@ class SeguroVidaValidator:
         pagamentos = []
         for comp in comprovantes:
             pagamentos.extend(_extrair_pagamentos_comprovante(comp["texto"]))
+        if not pagamentos:
+            pagamentos.extend(_extrair_pagamento_ultima_pagina(apolice["texto"]))
 
         colaboradores = []
         if tipo == "INDIVIDUAL":
@@ -338,7 +385,7 @@ class SeguroVidaValidator:
             ]
 
         comprovante_no_mesmo_pdf = _tem_indicio_pagamento(apolice["texto"])
-        if tipo == "INDIVIDUAL" and comprovante_no_mesmo_pdf and not pagamentos:
+        if tipo == "INDIVIDUAL" and comprovante_no_mesmo_pdf and not any(c.get("comprovante_pagamento") for c in colaboradores):
             for c in colaboradores:
                 valor_localizado = _extrair_valor_por_nome_no_texto(apolice["texto"], c.get("nome"))
                 c["comprovante_pagamento"] = True

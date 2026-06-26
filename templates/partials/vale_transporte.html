@@ -4,7 +4,7 @@
         <div class="col-12">
             <label class="form-label fw-bold">Arquivos VT (Termos, Relação e Comprovante):</label>
             <input type="file" id="vt_files" class="form-control" multiple accept=".pdf">
-            <small class="text-muted">Nomes e assinaturas serão extraídos automaticamente via IA.</small>
+            <small class="text-muted">Nomes, valores e assinaturas serao extraidos automaticamente via OCR/IA quando necessario.</small>
         </div>
         <div class="col-12 mt-3">
             <button class="btn w-100 fw-bold text-white shadow" onclick="validarVT()" style="background-color: #8b0000; border: none; height: 50px;">
@@ -56,13 +56,13 @@ async function validarVT() {
                         <span class="badge ${
                             v.status === 'OK' ? 'bg-success' :
                             v.status === 'NAO OPTANTE' ? 'bg-primary' :
-                            v.status === 'PENDENTE' ? 'bg-warning text-dark' :
+                            v.status === 'PENDENTE' || v.status === 'Pendente' ? 'bg-warning text-dark' :
                         'bg-secondary'
                     }">
                         ${v.status}
                     </span>
                 </td>
-                    <td><small>${v.detalhe}</small></td>
+                    <td><small>${v.detalhe || v.evidencia || ''}</small></td>
                 </tr>`;
         });
     } catch (e) {

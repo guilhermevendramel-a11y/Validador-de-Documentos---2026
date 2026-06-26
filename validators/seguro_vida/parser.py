@@ -1,6 +1,10 @@
 import re
 
 
+def _quebrar_paginas(texto_completo):
+    return [bloco.strip() for bloco in re.split(r"\f", str(texto_completo or "")) if bloco.strip()]
+
+
 def extrair_dados_seguro_universal(texto_completo):
 
     res = {
@@ -19,6 +23,10 @@ def extrair_dados_seguro_universal(texto_completo):
 
     texto_original = texto_completo
     texto = texto_completo.upper()
+    paginas = _quebrar_paginas(texto_completo)
+    blocos_busca = list(reversed(paginas)) if paginas else [texto_original]
+    if texto_original not in blocos_busca:
+        blocos_busca.append(texto_original)
 
     # ==============================
     # 1️⃣ EMPRESA (via CNPJ)
@@ -73,37 +81,50 @@ def extrair_dados_seguro_universal(texto_completo):
     padroes_valor_pagamento = [
         r"\(=\)\s*VALOR DO PAGAMENTO.*?(\d{1,3}(?:\.\d{3})*,\d{2})",
         r"VALOR DO PAGAMENTO.*?(\d{1,3}(?:\.\d{3})*,\d{2})",
-        r"VALOR DO BOLETO.*?(\d{1,3}(?:\.\d{3})*,\d{2})"
+        r"COMPROVANTE DE PAGAMENTO.*?(\d{1,3}(?:\.\d{3})*,\d{2})",
+        r"DADOS DO PAGAMENTO.*?VALOR[:\s]+(\d{1,3}(?:\.\d{3})*,\d{2})",
+        r"COMPROVANTE DE OPERAC[AOÃÇ].*?VALOR[:\s]+(\d{1,3}(?:\.\d{3})*,\d{2})",
+        r"PREMIO LIQUIDO.*?(\d{1,3}(?:\.\d{3})*,\d{2})",
+        r"VALOR LIQUIDO.*?(\d{1,3}(?:\.\d{3})*,\d{2})",
+        r"VALOR DO BOLETO.*?(\d{1,3}(?:\.\d{3})*,\d{2})",
     ]
 
-    for padrao in padroes_valor_pagamento:
-        match = re.search(padrao, texto, re.DOTALL)
-        if match:
-            valor = match.group(1)
-            try:
-                valor_float = float(valor.replace(".", "").replace(",", "."))
-                res["valor_pago"] = "{:,.2f}".format(valor_float)\
-                    .replace(",", "X")\
-                    .replace(".", ",")\
-                    .replace("X", ".")
-                break
-            except:
-                continue
+    for bloco in blocos_busca:
+        for padrao in padroes_valor_pagamento:
+            match = re.search(padrao, bloco, re.DOTALL)
+            if match:
+                valor = match.group(1)
+                try:
+                    valor_float = float(valor.replace(".", "").replace(",", "."))
+                    res["valor_pago"] = "{:,.2f}".format(valor_float)\
+                        .replace(",", "X")\
+                        .replace(".", ",")\
+                        .replace("X", ".")
+                    break
+                except:
+                    continue
+        if res["valor_pago"] != "0,00":
+            break
 
     # ==============================
     # 4️⃣ DATA DE PAGAMENTO
     # ==============================
 
-    match_data = re.search(
-        r"DATA DE PAGAMENTO[:\s]+(\d{2}/\d{2}/\d{4})",
-        texto
-    )
+    for bloco in blocos_busca:
+        match_data = re.search(
+            r"DATA DE PAGAMENTO[:\s]+(\d{2}[\/\.\-]\d{2}[\/\.\-]\d{4})",
+            bloco,
+            re.I,
+        )
 
-    if match_data:
-        res["data_pagamento"] = match_data.group(1)
+        if match_data:
+            res["data_pagamento"] = match_data.group(1).replace(".", "/").replace("-", "/")
+            break
     else:
-        datas = re.findall(r"\d{2}/\d{2}/\d{4}", texto)
-        if datas:
-            res["data_pagamento"] = datas[-1]
+        for bloco in blocos_busca:
+            datas = re.findall(r"\d{2}[\/\.\-]\d{2}[\/\.\-]\d{4}", bloco)
+            if datas:
+                res["data_pagamento"] = datas[-1].replace(".", "/").replace("-", "/")
+                break
 
     return res

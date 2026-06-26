@@ -120,6 +120,10 @@
                     status: data.estrutura_dctf_ok
                 },
                 {
+                    label: "Relatório de Créditos DCTFWeb",
+                    status: data.relatorio_creditos_ok
+                },
+                {
                     label: "Pagamento Identificado",
                     status: data.pagamento_identificado
                 }
@@ -129,7 +133,9 @@
 
                 let statusHtml = "";
 
-                if (item.status) {
+                if (item.status === "NA") {
+                    statusHtml = "NA";
+                } else if (item.status) {
                     statusHtml = "✔ OK";
                 } else if (item.label === "Empresa") {
                     statusHtml = `
@@ -147,7 +153,7 @@
                             ${item.label}
                         </td>
                         <td style="text-align:center; padding: 8px;"
-                            class="${item.status ? 'text-sucesso' : 'text-alerta'}">
+                            class="${item.status === 'NA' ? 'text-muted' : (item.status ? 'text-sucesso' : 'text-alerta')}">
                             ${statusHtml}
                         </td>
                     </tr>

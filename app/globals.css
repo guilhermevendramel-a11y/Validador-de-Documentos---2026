@@ -349,6 +349,11 @@ select {
   font-weight: 700;
 }
 
+.cell-neutral {
+  color: #7a5c00;
+  font-weight: 700;
+}
+
 .fgts-resumo {
   line-height: 1.45;
   margin-top: 12px;

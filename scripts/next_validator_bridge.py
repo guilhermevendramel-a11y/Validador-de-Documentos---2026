@@ -11,6 +11,8 @@ if ROOT_DIR not in sys.path:
 def status_texto(valor):
     if isinstance(valor, bool):
         return "OK" if valor else "Pendente"
+    if isinstance(valor, str) and valor.upper() == "NA":
+        return "NA"
     if valor is None or valor == "":
         return "-"
     return str(valor)
@@ -83,7 +85,7 @@ def montar_data_table(resultado, endpoint=None):
             "Relação de Categorias",
             "Relação de Estabelecimentos",
             "Relação de Tipos de Valor",
-            "Relação de Tomadores",
+            "Relação de Tomadores de Serviço",
         ]
         chaves = [chave for chave in ordem_fgts if chave in documentos]
         chaves.extend([chave for chave in documentos.keys() if chave not in chaves])
@@ -93,7 +95,7 @@ def montar_data_table(resultado, endpoint=None):
             "rows": [{"documento": chave, "status": status_texto(documentos.get(chave))} for chave in chaves],
         })
 
-    validacoes = resultado.get("validacoes") or resultado.get("linhas")
+    validacoes = None if endpoint in ("va", "vt") else (resultado.get("validacoes") or resultado.get("linhas"))
     if isinstance(validacoes, list) and validacoes:
         validacoes_rows = []
         for item in validacoes:
@@ -119,36 +121,80 @@ def montar_data_table(resultado, endpoint=None):
         linhas = []
         for item in colaboradores:
             if isinstance(item, dict):
+                nome = item.get("nome") or item.get("nome_colaborador") or item.get("colaborador") or ""
+            else:
+                nome = item
+
+            if endpoint in ("va", "vt"):
+                nome = str(nome or "").strip()
+                if nome:
+                    linhas.append({"nome": nome})
+                continue
+
+            if isinstance(item, dict):
                 linhas.append({chave: valor_formatado(valor) for chave, valor in item.items()})
             else:
                 linhas.append({"nome": str(item)})
         tabelas.append({
             "titulo": "Colaboradores",
-            "columns": colunas_objetos(
-                linhas,
-                [
-                    "nome",
-                    "competencia",
-                    "competencia_ok",
-                    "marcacoes",
-                    "assinatura",
-                    "assinatura_tipo",
-                    "assinatura_origem",
-                    "assinatura_confianca",
-                    "assinatura_paginas",
-                    "assinatura_bbox",
-                    "assinatura_zona",
-                    "assinatura_motivo",
-                    "tomador",
-                    "valor_fgts",
-                    "valor",
-                    "holerite",
-                    "comprovante",
-                    "diferenca",
-                ],
+            "columns": ["nome"] if endpoint in ("va", "vt") else (
+                ["nome", "tipo_documento", "valor_base", "valor_recibo", "valor_comprovante", "valor_nf", "diferenca", "conferencia", "status", "detalhe", "fluxo", "assinatura_digital"]
+                if endpoint == "vt"
+                else colunas_objetos(
+                    linhas,
+                    [
+                        "nome",
+                        "competencia",
+                        "competencia_ok",
+                        "marcacoes",
+                        "assinatura",
+                        "assinatura_tipo",
+                        "assinatura_origem",
+                        "assinatura_confianca",
+                        "assinatura_paginas",
+                        "assinatura_bbox",
+                        "assinatura_zona",
+                        "assinatura_motivo",
+                        "tomador",
+                        "valor_fgts",
+                        "valor",
+                        "holerite",
+                        "comprovante",
+                        "diferenca",
+                    ],
+                )
             ),
             "rows": linhas,
         })
+
+    if endpoint == "vt":
+        detalhes_vt = resultado.get("colaboradores_detalhados")
+        if isinstance(detalhes_vt, list) and detalhes_vt:
+            tabelas.append({
+                "titulo": "Conferencia VT",
+                "columns": colunas_objetos(
+                    detalhes_vt,
+                    [
+                        "nome",
+                        "tipo_documento",
+                        "valor_base",
+                        "valor_recibo",
+                        "valor_comprovante",
+                        "valor_nf",
+                        "diferenca",
+                        "conferencia",
+                        "status",
+                        "detalhe",
+                        "fluxo",
+                        "assinatura_digital",
+                    ],
+                ),
+                "rows": [
+                    {chave: valor_formatado(valor) for chave, valor in item.items()}
+                    for item in detalhes_vt
+                    if isinstance(item, dict)
+                ],
+            })
 
     anexos = resultado.get("anexos")
     if isinstance(anexos, list) and anexos:

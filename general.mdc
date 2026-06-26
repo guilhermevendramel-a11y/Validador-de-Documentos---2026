@@ -1,0 +1,27 @@
+---
+alwaysApply: true
+---
+# Regras Gerais do Projeto
+
+Estas regras devem ser verificadas antes de qualquer alteração no repositório.
+
+1. Segurança sempre primeiro
+   Nenhuma feature é entregue sem validar questões de segurança.
+2. Escalabilidade obrigatória
+   O código deve suportar crescimento sem reescrita.
+3. Não alterar código não solicitado
+   A IA só toca no que foi pedido.
+4. Pedir antes de mexer em arquivos globais
+   Arquivos como `inc_bridge.php` e `.env` só são alterados com confirmação.
+5. Comunicar toda alteração explicitamente
+   A IA lista tudo o que mudou antes de entregar.
+6. Testar exaustivamente
+   Cada feature nova precisa de resultado de teste explícito.
+7. Documentar técnica e usualmente
+   Para outros devs e para o usuário final.
+8. Verificar regressões a cada alteração
+   Toda mudança é avaliada para não quebrar o sistema existente.
+9. Verificar regressões em features novas
+   Features novas também são auditadas contra o sistema existente.
+10. Buscar features existentes antes de criar
+    Evita duplicar trabalho já feito no portal.

@@ -1,29 +1,34 @@
-import re
-from holerite.engine_parser import engine_extracao
+﻿import re
+from typing import Any, Dict, List
 
-def extrair_pagamentos(texto):
-    pagamentos = []
+from validators.holerite.engine_parser import engine_extracao, normalizar_texto
+
+SEPARADOR_PAGINA = r"(?:\f|\n\s*[-=]{3,}\s*\n|\n\s*PAGINA\s+\d+\s*\n)"
+
+
+def _split_blocos_comprovante(texto: str) -> List[str]:
+    texto = normalizar_texto(texto)
+    paginas = [p.strip() for p in re.split(SEPARADOR_PAGINA, texto, flags=re.IGNORECASE) if p.strip()] or [texto]
+    blocos: List[str] = []
+    for pg in paginas:
+        starts = [m.start() for m in re.finditer(r"(?=BANCO\s+ITAU\s*-\s*COMPROVANTE\s+DE\s+TRANSFERENCIA|DADOS\s+DA\s+CONTA\s+CREDITADA\s*:)", pg, flags=re.IGNORECASE)]
+        if not starts:
+            blocos.append(pg)
+            continue
+        for i, s in enumerate(starts):
+            e = starts[i + 1] if i + 1 < len(starts) else len(pg)
+            blocos.append(pg[s:e].strip())
+    return blocos
+
+
+def extrair_pagamentos(texto: str) -> List[Dict[str, Any]]:
+    pagamentos: List[Dict[str, Any]] = []
     if not texto:
         return pagamentos
-
-    # Divide o texto por comprovantes usando âncoras de autenticação
-    # Isso evita que dados de rodapé de um comprovante 'vazem' para a extração do valor
-    blocos = re.split(r"(?=COMPROVANTE|AUTENTICA[ÇC][ÃA]O|TED|PIX)", texto.upper())
-    
-    for bloco in blocos:
-        if len(bloco.strip()) < 40: continue
-        
-        try:
-            dados = engine_extracao(bloco)
-            # No comprovante bancário, favorecido e valor são obrigatórios
-            if dados.get("nome") and dados.get("valor"):
-                pagamentos.append({
-                    "nome": dados["nome"],
-                    "valor_pago": dados["valor"],
-                    "data_pagamento": dados.get("data"),
-                    "confianca": dados["confianca"]
-                })
-        except Exception as e:
-            print(f"Erro no comprovante: {e}")
-            
+    for idx, bloco in enumerate(_split_blocos_comprovante(texto), start=1):
+        dados = engine_extracao(bloco, tipo="comprovante")
+        if dados.get("nome") and float(dados.get("valor_pago", 0.0) or 0.0) > 0:
+            dados["pagina"] = idx
+            dados["bloco"] = idx
+            pagamentos.append(dados)
     return pagamentos

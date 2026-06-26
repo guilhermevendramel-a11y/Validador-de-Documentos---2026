@@ -9,10 +9,22 @@ LEARNING_PATH = os.path.join(os.getcwd(), "data", "document_learning.json")
 
 ANCHOR_BY_DOC = {
     "cartao_ponto": ["PONTO", "COMPETENCIA", "ENTRADA", "SAIDA", "ASSINATURA"],
-    "holerite": ["HOLERITE", "RECIBO", "LIQUIDO", "VENCIMENTOS", "DESCONTOS"],
+    "holerite": ["HOLERITE", "RECIBO", "ADIANTAMENTO", "LIQUIDO", "LÍQUIDO A RECEBER", "VENCIMENTOS", "DESCONTOS", "ASSINATURA", "RUBRICA"],
     "fgts": ["FGTS", "TRABALHADOR", "TOMADOR", "ESTABELECIMENTO", "CNO"],
     "inss": ["DCTFWEB", "DARF", "SALDO A PAGAR", "PERIODO DE APURACAO", "CNPJ"],
-    "folha": ["FOLHA", "PAGAMENTO", "PROVENTOS", "DESCONTOS", "LIQUIDO"],
+    "folha": [
+        "FOLHA",
+        "PAGAMENTO",
+        "EMPRESA",
+        "RAZAO SOCIAL",
+        "RAZÃO SOCIAL",
+        "NOME DO FUNCIONARIO",
+        "NOME DO FUNCIONÁRIO",
+        "COLABORADOR",
+        "EMPREGADO",
+        "COMPETENCIA",
+        "COMPETÊNCIA",
+    ],
 }
 
 
@@ -33,10 +45,13 @@ def detectar_ancoras(texto, tipo_documento=None):
     normalizado = normalizar_texto(texto)
     candidatos = [
         "NOME DO FUNCIONARIO", "NOME DO FUNCIONÁRIO", "VALOR LIQUIDO", "VALOR LÍQUIDO",
+        "LÍQUIDO A RECEBER", "LIQUIDO A RECEBER", "TOTAL LÍQUIDO", "TOTAL LIQUIDO",
         "DECLARO TER RECEBIDO", "TOTAL DE VENCIMENTOS", "TOTAL DE DESCONTOS",
-        "ASSINATURA DO FUNCIONARIO", "ASSINATURA DO FUNCIONÁRIO", "CNPJ", "CPF",
+        "ASSINATURA DO FUNCIONARIO", "ASSINATURA DO FUNCIONÁRIO", "ASSINATURA OU VISTO", "ASSINATURA E DATA",
+        "RUBRICA", "CNPJ", "CPF",
         "FOLHA MENSAL", "COMPETENCIA", "COMPETÊNCIA", "DCTFWEB", "DARF", "FGTS",
         "TOMADOR", "ESTABELECIMENTO", "CNO", "SALDO A PAGAR",
+        "ADIANTAMENTO",
     ]
     if tipo_documento and tipo_documento in ANCHOR_BY_DOC:
         candidatos.extend(ANCHOR_BY_DOC[tipo_documento])

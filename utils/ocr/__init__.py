@@ -13,26 +13,41 @@ import pytesseract
 from pdf2image import convert_from_path
 
 import utils.tesseract_config as tesseract_config
+from utils.ocr_profiles import carregar_perfis, encontrar_perfil_documento, encontrar_perfil_por_texto
 
 if getattr(tesseract_config, "tesseract_cmd", None):
     pytesseract.pytesseract.tesseract_cmd = tesseract_config.tesseract_cmd
 
-OCR_VERSION = "ocr_v2"
+OCR_VERSION = "ocr_v4"
 CACHE_DIR = Path("data") / "ocr_cache"
 
 KEYWORDS_BY_DOC = {
     "cartao_ponto": ["PONTO", "FUNCIONARIO", "FUNCIONÁRIO", "COMPETENCIA", "COMPETÊNCIA", "ENTRADA", "SAIDA", "SAÍDA", "ASSINATURA"],
-    "holerite": ["HOLERITE", "RECIBO", "SALARIO", "SALÁRIO", "COMPETENCIA", "COMPETÊNCIA", "LIQUIDO", "LÍQUIDO", "VENCIMENTOS", "DESCONTOS"],
+    "holerite": ["HOLERITE", "RECIBO", "SALARIO", "SALÁRIO", "COMPETENCIA", "COMPETÊNCIA", "LIQUIDO", "LÍQUIDO", "LÍQUIDO A RECEBER", "ADIANTAMENTO", "ASSINATURA", "RUBRICA", "VENCIMENTOS", "DESCONTOS"],
     "fgts": ["FGTS", "COMPETENCIA", "COMP. APURACAO", "COMP. APURAÇÃO", "TRABALHADOR", "TOMADOR", "ESTABELECIMENTO", "CNO"],
     "inss": ["DCTFWEB", "DARF", "SALDO A PAGAR", "PERIODO DE APURACAO", "PERÍODO DE APURAÇÃO", "CNPJ"],
-    "folha": ["FOLHA", "PAGAMENTO", "FUNCIONARIO", "FUNCIONÁRIO", "PROVENTOS", "DESCONTOS", "LIQUIDO", "LÍQUIDO"],
+    "folha": [
+        "FOLHA",
+        "PAGAMENTO",
+        "EMPRESA",
+        "RAZAO SOCIAL",
+        "RAZÃO SOCIAL",
+        "FUNCIONARIO",
+        "FUNCIONÁRIO",
+        "NOME DO FUNCIONARIO",
+        "NOME DO FUNCIONÁRIO",
+        "COLABORADOR",
+        "EMPREGADO",
+        "COMPETENCIA",
+        "COMPETÊNCIA",
+    ],
 }
 
 FIELD_ANCHORS = {
     "nome": ["NOME", "FUNCIONARIO", "FUNCIONÁRIO", "COLABORADOR", "EMPREGADO"],
     "empresa": ["RAZAO SOCIAL", "RAZÃO SOCIAL", "EMPRESA"],
     "competencia": ["COMPETENCIA", "COMPETÊNCIA", "PERIODO", "PERÍODO", "PA:"],
-    "valor_liquido": ["LIQUIDO", "LÍQUIDO", "VALOR LÍQUIDO", "TOTAL LIQUIDO", "LÍQUIDO A RECEBER"],
+    "valor_liquido": ["VALOR LIQUIDO", "VALOR LÍQUIDO", "LÍQUIDO A RECEBER", "LIQUIDO A RECEBER", "TOTAL LÍQUIDO", "TOTAL LIQUIDO", "VALOR A RECEBER"],
     "data_pagamento": ["DATA PAGAMENTO", "PAGAMENTO", "VENCIMENTO"],
     "cno": ["CNO", "TOMADOR", "OBRA"],
     "saldo_a_pagar": ["SALDO A PAGAR", "VALOR A RECOLHER", "TOTAL DA GUIA"],
@@ -53,8 +68,8 @@ def _arquivo_hash(path):
     return h.hexdigest()
 
 
-def _cache_key(caminho_pdf, tipo_documento=None, max_paginas=None, usar_ocr=True):
-    doc_hash = _arquivo_hash(caminho_pdf)
+def _cache_key(caminho_pdf, tipo_documento=None, max_paginas=None, usar_ocr=True, doc_hash=None):
+    doc_hash = doc_hash or _arquivo_hash(caminho_pdf)
     raw = f"{doc_hash}|{tipo_documento or ''}|{max_paginas}|{usar_ocr}|{OCR_VERSION}"
     return hashlib.sha1(raw.encode("utf-8")).hexdigest()
 
@@ -157,6 +172,25 @@ def extrair_texto_regiao(imagem, bbox, perfil="padrao", psm=6):
         return ""
 
 
+def _bbox_absoluto(bbox, largura, altura):
+    if not bbox or len(bbox) != 4:
+        return None
+    x1, y1, x2, y2 = bbox
+    if max(abs(float(v)) for v in bbox) <= 1.5:
+        return [
+            int(max(0, round(float(x1) * largura))),
+            int(max(0, round(float(y1) * altura))),
+            int(min(largura, round(float(x2) * largura))),
+            int(min(altura, round(float(y2) * altura))),
+        ]
+    return [
+        int(max(0, round(float(x1)))),
+        int(max(0, round(float(y1)))),
+        int(min(largura, round(float(x2)))),
+        int(min(altura, round(float(y2)))),
+    ]
+
+
 def _render_pagina(page, dpi=250):
     zoom = dpi / 72.0
     pix = page.get_pixmap(matrix=fitz.Matrix(zoom, zoom), alpha=False)
@@ -191,6 +225,49 @@ def _ocr_pagina_com_perfis(img, tipo_documento=None):
     return melhor_txt, melhor_q
 
 
+def _ocr_pagina_com_perfil_layout(img, perfil_layout, tipo_documento=None):
+    if img is None or not perfil_layout:
+        return "", 0.0
+
+    altura, largura = img.shape[:2]
+    regiao_base = _bbox_absoluto(perfil_layout.get("ocr_region"), largura, altura) or [0, 0, largura, altura]
+    x1, y1, x2, y2 = regiao_base
+    recorte_principal = img[y1:y2, x1:x2]
+    if recorte_principal.size == 0:
+        return "", 0.0
+
+    txt_principal, q_principal = _ocr_pagina_com_perfis(recorte_principal, tipo_documento=tipo_documento)
+    linhas_sinteticas = []
+
+    campos = perfil_layout.get("campos") or {}
+    for campo, definicao in campos.items():
+        if not isinstance(definicao, dict):
+            continue
+        bbox = _bbox_absoluto(definicao.get("bbox"), largura, altura)
+        if not bbox:
+            continue
+        texto_campo = extrair_texto_regiao(
+            img,
+            bbox,
+            perfil=definicao.get("perfil", "documento_claro"),
+            psm=int(definicao.get("psm", 6)),
+        )
+        texto_campo = re.sub(r"\s+", " ", str(texto_campo or "")).strip()
+        if not texto_campo:
+            continue
+        rotulo = definicao.get("label") or campo.replace("_", " ").upper()
+        linhas_sinteticas.append(f"{rotulo}: {texto_campo}")
+
+    texto_final = txt_principal.strip()
+    if linhas_sinteticas:
+        prefixo = "\n".join(linhas_sinteticas).strip()
+        texto_final = f"{prefixo}\n{texto_final}".strip() if texto_final else prefixo
+
+    qualidade_campos = calcular_qualidade_texto("\n".join(linhas_sinteticas), tipo_documento=tipo_documento) if linhas_sinteticas else 0.0
+    qualidade_final = max(q_principal, min(1.0, qualidade_campos + (0.03 * len(linhas_sinteticas))))
+    return texto_final, round(qualidade_final, 4)
+
+
 def extrair_trechos_relevantes(texto, tipo_documento, campos_esperados=None, janela=500):
     texto = str(texto or "")
     norm = _norm(texto)
@@ -219,16 +296,22 @@ def extrair_trechos_relevantes(texto, tipo_documento, campos_esperados=None, jan
 
 def deve_chamar_ia(resultado_ocr, resultado_parser=None, tipo_documento=None):
     qualidade = float((resultado_ocr or {}).get("qualidade") or 0)
-    if qualidade < 0.60:
+    limiar_qualidade = 0.60
+    if tipo_documento == "comprovante":
+        # Comprovante costuma ter menos texto estruturado e mais variação visual.
+        # Mantemos o OCR local para casos bons, mas subimos o gatilho da IA quando a leitura vier só "razoável".
+        limiar_qualidade = 0.82
+
+    if qualidade < limiar_qualidade:
         return True, "qualidade_ocr_baixa"
 
     parser = resultado_parser or {}
     campos_obrigatorios = {
-        "holerite": ["nome", "competencia", "valor_liquido"],
+        "holerite": ["nome", "valor_liquido"],
         "inss": ["cnpj", "competencia"],
         "fgts": ["competencia"],
         "cartao_ponto": ["nome", "competencia"],
-        "folha": ["nome", "competencia"],
+        "folha": ["nome", "competencia", "empresa"],
     }.get(tipo_documento or "", [])
 
     campos = parser.get("campos") if isinstance(parser, dict) else {}
@@ -247,11 +330,11 @@ def deve_chamar_ia(resultado_ocr, resultado_parser=None, tipo_documento=None):
 
 def montar_payload_ia_economico(tipo_documento, resultado_ocr, resultado_parser, evidencias_visuais=None):
     campos_esperados = {
-        "holerite": ["nome", "empresa", "competencia", "valor_liquido"],
+        "holerite": ["nome", "valor_liquido"],
         "inss": ["cnpj", "competencia", "saldo_a_pagar"],
         "fgts": ["empresa", "competencia", "cno"],
         "cartao_ponto": ["nome", "competencia"],
-        "folha": ["empresa", "competencia"],
+        "folha": ["nome", "competencia", "empresa"],
     }.get(tipo_documento or "", ["nome", "competencia"])
 
     texto = (resultado_ocr or {}).get("texto", "")
@@ -282,11 +365,15 @@ def extrair_documento_inteligente(caminho_pdf, tipo_documento=None, max_paginas=
             "paginas": [],
         }
 
-    key = _cache_key(caminho_pdf, tipo_documento=tipo_documento, max_paginas=max_paginas, usar_ocr=usar_ocr)
+    doc_hash = _arquivo_hash(caminho_pdf)
+    key = _cache_key(caminho_pdf, tipo_documento=tipo_documento, max_paginas=max_paginas, usar_ocr=usar_ocr, doc_hash=doc_hash)
     cache = _load_cache(key)
     if cache:
         cache["cache_hit"] = True
         return cache
+
+    perfil_documento = encontrar_perfil_documento(tipo_documento, caminho_arquivo=caminho_pdf, arquivo_hash=doc_hash)
+    perfis_tipo = carregar_perfis(tipo_documento) if tipo_documento else []
 
     paginas_result = []
     metodo_set = set()
@@ -313,14 +400,29 @@ def extrair_documento_inteligente(caminho_pdf, tipo_documento=None, max_paginas=
                     print(f"[OCR] pagina={i+1} metodo=texto_nativo qualidade={q_nativo}")
                     continue
 
-                dpi = 250 if q_nativo > 0.3 else 300
+                dpi = 350 if perfil_documento else (250 if q_nativo > 0.3 else 300)
                 img = _render_pagina(page, dpi=dpi)
-                txt_ocr, q_ocr = _ocr_pagina_com_perfis(img, tipo_documento=tipo_documento)
+                if perfil_documento:
+                    txt_ocr, q_ocr = _ocr_pagina_com_perfil_layout(img, perfil_documento, tipo_documento=tipo_documento)
+                else:
+                    txt_ocr, q_ocr = _ocr_pagina_com_perfis(img, tipo_documento=tipo_documento)
+                    if tipo_documento == "holerite" and perfis_tipo:
+                        texto_referencia = txt_ocr if txt_ocr.strip() else txt_nativo
+                        perfil_texto, score_texto = encontrar_perfil_por_texto(tipo_documento, texto_referencia, limite=0.25)
+                        if perfil_texto:
+                            txt_modelo, q_modelo = _ocr_pagina_com_perfil_layout(img, perfil_texto, tipo_documento=tipo_documento)
+                            if q_modelo > q_ocr or (q_modelo == q_ocr and len(txt_modelo) > len(txt_ocr)):
+                                txt_ocr, q_ocr = txt_modelo, q_modelo
+                                perfil_documento = perfil_texto
+                                print(f"[OCR] perfil_holerite_texto={perfil_texto.get('id')} score={score_texto}")
 
                 # tentativa extra em 400 apenas se continuar ruim
                 if q_ocr < 0.55:
                     img2 = _render_pagina(page, dpi=400)
-                    txt2, q2 = _ocr_pagina_com_perfis(img2, tipo_documento=tipo_documento)
+                    if perfil_documento:
+                        txt2, q2 = _ocr_pagina_com_perfil_layout(img2, perfil_documento, tipo_documento=tipo_documento)
+                    else:
+                        txt2, q2 = _ocr_pagina_com_perfis(img2, tipo_documento=tipo_documento)
                     if q2 > q_ocr:
                         txt_ocr, q_ocr = txt2, q2
 
@@ -366,6 +468,7 @@ def extrair_documento_inteligente(caminho_pdf, tipo_documento=None, max_paginas=
         "texto": texto,
         "metodo": metodo,
         "qualidade": qualidade_global,
+        "perfil_ocr": (perfil_documento or {}).get("id"),
         "precisa_ia": bool(precisa_ia),
         "motivo_ia": motivo_ia,
         "paginas": paginas_result,

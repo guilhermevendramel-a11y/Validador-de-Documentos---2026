@@ -149,9 +149,9 @@ const validators = [
   },
   {
     id: "seguro",
-    title: "ApÃ³lice do Seguro de Vida",
+    title: "Apólice do Seguro de Vida",
     action: "/validar_seguro_vida",
-    files: [{ name: "comprovantes", label: "Apolice + comprovante", multiple: true, required: true }],
+    files: [{ name: "comprovantes", label: "Ap\u00f3lice + comprovante", multiple: true, required: true }],
   },
 ];
 
@@ -179,7 +179,7 @@ function Money({ value, prefix = "" }) {
 }
 
 function CheckMark({ ok }) {
-  return <span className={ok ? "check-ok" : "check-fail"}>{ok ? "OK" : "FALTA"}</span>;
+  return <span className={ok ? "check-ok" : "check-fail"}>{ok ? "OK" : "Pendente"}</span>;
 }
 
 function normalizeText(value) {
@@ -249,7 +249,7 @@ function classifyPackageFiles(files) {
       grupos.folha_pagamento.push(file);
     } else if (path.includes("HOLERITE")) {
       if (path.includes("COMPROVANTE")) uploads.holerite.comprovantes.push(file);
-      else uploads.holerite.holerite = [file];
+      else uploads.holerite.holerite.push(file);
       grupos.holerite.push(file);
     } else if (path.includes("INSS") || path.includes("DCTFWEB")) {
       if (path.includes("DCTFWEB")) uploads.inss.dctfweb = [file];
@@ -348,11 +348,11 @@ function FgtsResult({ result }) {
   const documentos = result?.documentos || {};
   const colaboradores = result?.colaboradores || result?.trabalhadores || [];
   const documentosOrdenados = [
-    "RelaÃ§Ã£o de Trabalhadores",
-    "RelaÃ§Ã£o de Categorias",
-    "RelaÃ§Ã£o de Estabelecimentos",
-    "RelaÃ§Ã£o de Tipos de Valor",
-    "RelaÃ§Ã£o de Tomadores",
+    "Relação de Trabalhadores",
+    "Relação de Categorias",
+    "Relação de Estabelecimentos",
+    "Relação de Tipos de Valor",
+    "Relação de Tomadores de Serviço",
   ];
 
   const valorFgts = result.valor_fgts_digital ?? result.valor_a_pagar;
@@ -395,7 +395,11 @@ function FgtsResult({ result }) {
           {documentosOrdenados.map((documento) => (
             <tr key={documento}>
               <td>{documento}</td>
-              <td className="status-center"><CheckMark ok={Boolean(documentos[documento])} /></td>
+              <td className="status-center">
+                <span className={documentos[documento] ? "cell-ok" : "cell-fail"}>
+                  {documentos[documento] ? "OK" : "Pendente"}
+                </span>
+              </td>
             </tr>
           ))}
         </tbody>
@@ -431,11 +435,17 @@ function InssResult({ result }) {
     { item: "Valor Guia vs DCTF", ok: result.valor_ok },
     { item: "Valor Guia vs Comprovante", ok: result.comprovante_ok },
     { item: "Empresa", ok: result.empresa_ok },
-    { item: "CompetÃªncia Guia", ok: result.competencia_guia_ok },
-    { item: "CompetÃªncia DCTF", ok: result.competencia_dctf_ok },
+    { item: "Competência Guia", ok: result.competencia_guia_ok },
+    { item: "Competência DCTF", ok: result.competencia_dctf_ok },
     { item: "Estrutura DCTF", ok: result.estrutura_dctf_ok },
+    { item: "Relatório de Créditos DCTFWeb", ok: result.relatorio_creditos_ok },
     { item: "Pagamento Identificado", ok: result.pagamento_identificado },
   ];
+
+  const statusLabel = (valor) => {
+    if (valor === "NA") return "NA";
+    return valor ? "OK" : "Pendente";
+  };
 
   return (
     <>
@@ -462,7 +472,19 @@ function InssResult({ result }) {
           {validacoes.map((validacao) => (
             <tr key={validacao.item}>
               <td>{validacao.item}</td>
-              <td><span className={validacao.ok ? "cell-ok" : "cell-fail"}>{validacao.ok ? "OK" : "Pendente"}</span></td>
+              <td>
+                <span
+                  className={
+                    validacao.ok === "NA"
+                      ? "cell-neutral"
+                      : validacao.ok
+                        ? "cell-ok"
+                        : "cell-fail"
+                  }
+                >
+                  {statusLabel(validacao.ok)}
+                </span>
+              </td>
             </tr>
           ))}
         </tbody>
@@ -499,7 +521,7 @@ function FolhaResult({ result }) {
             const nome = typeof colaborador === "string" ? colaborador : colaborador?.nome;
             return (
               <tr key={`${nome || "colaborador"}-${index}`}>
-                <td>{nome || "-"}</td>
+                <td style={{ color: "#000000" }}>{nome || "-"}</td>
               </tr>
             );
           }) : (
@@ -553,8 +575,6 @@ function HoleriteResult({ result }) {
         <div><strong>Mensagem:</strong> {result.mensagem || "-"}</div>
         <br />
         <div><strong>Competencia:</strong> {result.competencia || "-"}</div>
-        <div><strong>Nome no holerite:</strong> {result.nome_holerite || "-"}</div>
-        <div><strong>Nome no comprovante:</strong> {result.nome_comprovante || "-"}</div>
         <div><strong>Valor no holerite:</strong> <Money value={result.valor_holerite} prefix="R$ " /></div>
         <div><strong>Valor no comprovante:</strong> <Money value={result.valor_comprovante} prefix="R$ " /></div>
       </div>
@@ -569,6 +589,7 @@ function HoleriteResult({ result }) {
               <th>Holerite</th>
               <th>Comprovante</th>
               <th>Diferenca</th>
+              <th>Conferencia</th>
             </tr>
           </thead>
           <tbody>
@@ -581,7 +602,7 @@ function HoleriteResult({ result }) {
                 <td>
                   <StatusCell
                     ok={Boolean(colaborador.assinatura)}
-                    failLabel="FALTA"
+                    failLabel="Pendente"
                     label={assinaturaLabel(colaborador)}
                   />
                 </td>
@@ -600,10 +621,13 @@ function HoleriteResult({ result }) {
                     <Money value={colaborador.diferenca} prefix="R$ " />
                   </span>
                 </td>
+                <td>
+                  <StatusCell ok={Boolean(colaborador.valor_ok)} failLabel="DIVERGENTE" label="CONFERE" />
+                </td>
               </tr>
             )) : (
               <tr>
-                <td colSpan={6}>Nenhum colaborador encontrado.</td>
+                <td colSpan={7}>Nenhum colaborador encontrado.</td>
               </tr>
             )}
           </tbody>
@@ -762,36 +786,63 @@ function itemsWithoutValue(items) {
   if (!Array.isArray(items)) return [];
   return items.map((item) => {
     if (!item || typeof item !== "object") return item;
-    const { valor, ...rest } = item;
-    return rest;
+    return { nome: item.nome ?? item.nome_colaborador ?? item.colaborador ?? "" };
   });
 }
 
 function VaValoresBox({ result }) {
   const resumo = result?.resumo_financeiro || {};
-  const valorNota = Number(resumo.valor_nota_fiscal || 0);
-  const valorComprovante = Number(resumo.valor_comprovante || 0);
+  const somaRecibo = Number(resumo.soma_recibo || 0);
+  const somaComprovante = Number(resumo.soma_comprovante || 0);
   const encontrados = Boolean(resumo.valores_encontrados);
   const conferem = Boolean(resumo.valores_conferem);
+  const valoresSeparados = Array.isArray(resumo.valores_separados) ? resumo.valores_separados : [];
 
   return (
     <div className="inss-resumo" style={{ marginTop: "12px" }}>
       <div><strong>Conferencia de Valores (VA)</strong></div>
       <div><strong>Valores encontrados:</strong> {encontrados ? "Sim" : "Nao"}</div>
-      <div><strong>Valor da nota fiscal:</strong> <Money value={valorNota} prefix="R$ " /></div>
-      <div><strong>Valor do comprovante:</strong> <Money value={valorComprovante} prefix="R$ " /></div>
+      <div><strong>Soma recibos:</strong> <Money value={somaRecibo} prefix="R$ " /></div>
+      <div><strong>Soma comprovantes:</strong> <Money value={somaComprovante} prefix="R$ " /></div>
       <div>
         <strong>Resultado:</strong> {encontrados ? (conferem ? "Correto" : "Divergente") : "Pendente"}
       </div>
+      {valoresSeparados.length > 1 && (
+        <div style={{ marginTop: "12px" }}>
+          <strong>Valores separados:</strong>
+          <div className="table-wrap" style={{ marginTop: "8px" }}>
+            <table className="tabela-resultado">
+              <thead>
+                <tr>
+                  <th>Nome</th>
+                  <th>Recibo</th>
+                  <th>Comprovante</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {valoresSeparados.map((item, index) => (
+                  <tr key={`${item?.nome || "colaborador"}-${index}`}>
+                    <td>{item?.nome || "-"}</td>
+                    <td><Money value={item?.valor_recibo || 0} prefix="R$ " /></td>
+                    <td><Money value={item?.valor_comprovante || 0} prefix="R$ " /></td>
+                    <td>{item?.status || "-"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function statusText(ok, failLabel = "FALTA") {
+function statusText(ok, failLabel = "Pendente") {
   return ok ? "OK" : `${failLabel}`;
 }
 
-function StatusCell({ ok, failLabel = "FALTA", label = "OK" }) {
+function StatusCell({ ok, failLabel = "Pendente", label = "OK" }) {
   return (
     <span className={ok ? "cell-ok" : "cell-fail"}>
       {ok ? `${label}` : `${failLabel}`}
@@ -800,7 +851,7 @@ function StatusCell({ ok, failLabel = "FALTA", label = "OK" }) {
 }
 
 function assinaturaLabel(colaborador) {
-  if (!colaborador?.assinatura) return "FALTA";
+  if (!colaborador?.assinatura) return "Pendente";
   const tipo = String(colaborador.assinatura_tipo || "").toLowerCase();
   if (tipo.includes("digital")) return "Digital";
   if (tipo.includes("manual") || tipo.includes("rubrica")) return "Manual";
@@ -974,6 +1025,9 @@ function ValidatorCard({
   }
 
   const colaboradores = result?.colaboradores || result?.trabalhadores || [];
+  const colaboradoresDetalhados = config.id === "vt"
+    ? (result?.colaboradores_detalhados || [])
+    : colaboradores;
   const isCartaoPontoResult = (
     config.id === "cartao" ||
     colaboradores.some((item) => (
@@ -1065,7 +1119,10 @@ function ValidatorCard({
               items={config.id === "va" ? itemsWithoutValue(colaboradores) : colaboradores}
             />
           )}
-          {config.id !== "fgts" && config.id !== "inss" && config.id !== "folha" && config.id !== "holerite" && config.id !== "pacote" && <ItemsTable title="Validacoes" items={result.validacoes} />}
+          {config.id === "vt" && colaboradoresDetalhados.length > 0 && (
+            <ItemsTable title="Conferência VT" items={colaboradoresDetalhados} />
+          )}
+          {config.id !== "fgts" && config.id !== "inss" && config.id !== "folha" && config.id !== "holerite" && config.id !== "pacote" && config.id !== "va" && config.id !== "vt" && <ItemsTable title="Validacoes" items={result.validacoes} />}
           {config.id === "va" && <VaValoresBox result={result} />}
         </div>
       )}
@@ -1116,7 +1173,7 @@ export default function ValidatorDashboard() {
 
         next.pacote = {
           status: data.status || "Processado",
-          mensagem: data.mensagem || "ValidaÃ§Ã£o concluÃ­da.",
+          mensagem: data.mensagem || "Validação concluída.",
         };
 
         (data.validacoes || []).forEach((item) => {
@@ -1168,7 +1225,7 @@ export default function ValidatorDashboard() {
         }
 
         next.pacote = algumaValidacaoExecutada
-          ? { status: "Processado", mensagem: "ValidaÃ§Ã£o concluÃ­da com os arquivos informados manualmente." }
+          ? { status: "Processado", mensagem: "Validação concluída com os arquivos informados manualmente." }
           : { status: "Erro", mensagem: "Nenhum arquivo foi informado para validar." };
       }
 

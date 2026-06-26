@@ -127,6 +127,9 @@ class FGTSValidator:
             if not ok
         ]
         for documento in documentos_pendentes:
+            if documento == "Relação de Tomadores":
+                avisos.append("Relação de Tomadores de Serviço não identificada; validação considerada até a Relação de Tipos de Valor")
+                continue
             erros.append(f"Documento pendente: {documento}")
 
         trabalhadores_exibicao = extrair_colaboradores_fgts_digital(texto_rel, tomador_alvo)
@@ -134,9 +137,17 @@ class FGTSValidator:
             trabalhadores_exibicao = self._extrair_trabalhadores_para_exibicao(dados_ia_rel, tomador_alvo)
         linhas = self._montar_linhas_dashboard(erros, avisos, texto_rel)
 
-        status = "Reprovado" if erros else "Aprovado"
+        if erros:
+            status = "Reprovado"
+        elif avisos:
+            status = "Parcial"
+        else:
+            status = "Aprovado"
+
         if status == "Aprovado":
             mensagem = "FGTS validado com sucesso!"
+        elif status == "Parcial" and any("Tomadores de Serviço" in aviso for aviso in avisos):
+            mensagem = "Relação de Tomadores de Serviço não identificada; validação considerada até a Relação de Tipos de Valor."
         elif guia_comprovante_ok and valor_fgts_digital and valor_guia and not fgts_guia_ok:
             mensagem = (
                 "Valor da guia e comprovante conferem entre si, "

@@ -27,7 +27,7 @@ def validar_fgts(relatorio, guia, comprovante, competencia_input, tomador_input=
         erros.append("Relatório sem Relação de Tipos de Valor")
 
     if not docs.get("relacao_tomadores"):
-        erros.append("Relatório sem Relação de Tomadores")
+        avisos.append("Relação de Tomadores de Serviço não identificada; validação considerada até a Relação de Tipos de Valor")
 
     # =========================================
     # 2. EMPRESA
@@ -85,30 +85,29 @@ def validar_fgts(relatorio, guia, comprovante, competencia_input, tomador_input=
     # 6. TOMADOR + COLABORADORES
     # =========================================
     tomadores = relatorio.get("tomadores", [])
-
-    if not tomadores:
-        erros.append("Nenhum tomador encontrado no relatório")
-
-    tomador_encontrado = False
-    total_colaboradores = 0
-
     tomador_input_norm = normalizar_doc(tomador_input)
 
-    for t in tomadores:
-        cno = normalizar_doc(t.get("cnpj_ou_cno"))
+    if not tomadores:
+        avisos.append("Relação de Tomadores de Serviço não identificada; validação considerada até a Relação de Tipos de Valor")
+    else:
+        tomador_encontrado = False
+        total_colaboradores = 0
 
-        if tomador_input_norm:
-            if tomador_input_norm in cno:
-                tomador_encontrado = True
+        for t in tomadores:
+            cno = normalizar_doc(t.get("cnpj_ou_cno"))
+
+            if tomador_input_norm:
+                if tomador_input_norm in cno:
+                    tomador_encontrado = True
+                    total_colaboradores += len(t.get("colaboradores", []))
+            else:
                 total_colaboradores += len(t.get("colaboradores", []))
-        else:
-            total_colaboradores += len(t.get("colaboradores", []))
 
-    if tomador_input_norm and not tomador_encontrado:
-        erros.append("Tomador informado não encontrado no relatório")
+        if tomador_input_norm and not tomador_encontrado:
+            erros.append("Tomador informado não encontrado no relatório")
 
-    if total_colaboradores == 0:
-        erros.append("Nenhum colaborador encontrado para o tomador")
+        if total_colaboradores == 0:
+            erros.append("Nenhum colaborador encontrado para o tomador")
 
     # =========================================
     # 7. STATUS FINAL
@@ -120,8 +119,8 @@ def validar_fgts(relatorio, guia, comprovante, competencia_input, tomador_input=
     else:
         status = "Aprovado"
 
-    print("\n🧠 ================= FGTS RULES =================")
-    print(f"📊 STATUS: {status}")
+    print("\n================= FGTS RULES =================")
+    print(f"STATUS: {status}")
     print("================================================\n")
 
     return {

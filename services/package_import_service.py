@@ -69,7 +69,7 @@ def _classificar(caminho_relativo, caminho_absoluto, grupos):
         if "COMPROVANTE" in texto:
             grupos["holerite"].setdefault("comprovantes", []).append(caminho_absoluto)
         else:
-            grupos["holerite"]["holerite"] = caminho_absoluto
+            grupos["holerite"].setdefault("holerites", []).append(caminho_absoluto)
         return
 
     if "INSS" in texto or "DCTFWEB" in texto:
@@ -119,7 +119,7 @@ def _resumo_grupos(grupos):
         "cartao_ponto": _somente_validos([_nome(grupos["cartao_ponto"].get("file"))]),
         "folha_pagamento": _somente_validos([_nome(grupos["folha_pagamento"].get("file"))]),
         "holerite": _somente_validos([
-            _nome(grupos["holerite"].get("holerite")),
+            *[_nome(p) for p in grupos["holerite"].get("holerites", [])],
             *[_nome(p) for p in grupos["holerite"].get("comprovantes", [])],
         ]),
         "inss": _somente_validos([_nome(grupos["inss"].get("guia_inss")), _nome(grupos["inss"].get("dctfweb"))]),
@@ -185,7 +185,7 @@ def _grupos_vazios():
     return {
         "cartao_ponto": {},
         "folha_pagamento": {},
-        "holerite": {"comprovantes": []},
+        "holerite": {"holerites": [], "comprovantes": []},
         "inss": {},
         "fgts": {},
         "cnd": {"cnds": []},
@@ -256,7 +256,7 @@ def _executar_validacoes(grupos, competencia):
             processar_folha_pagamento(grupos["folha_pagamento"]["file"], competencia),
         ))
 
-    if grupos["holerite"].get("holerite") and grupos["holerite"].get("comprovantes"):
+    if grupos["holerite"].get("holerites") and grupos["holerite"].get("comprovantes"):
         from services.holerite_service import processar_holerite_comprovante
 
         validacoes.append(_resultado_item(
@@ -264,7 +264,7 @@ def _executar_validacoes(grupos, competencia):
             "Processado",
             "Arquivos classificados e validados",
             processar_holerite_comprovante(
-                grupos["holerite"]["holerite"],
+                grupos["holerite"]["holerites"],
                 grupos["holerite"]["comprovantes"],
                 competencia,
             ),

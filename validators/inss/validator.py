@@ -102,14 +102,14 @@ def comparar_empresa(e1, e2):
     cnpj2 = re.sub(r"\D", "", str(e2))
 
     if cnpj1 and cnpj2 and cnpj1 == cnpj2:
-        print("🏢 Empresa OK por CNPJ")
+        print("Empresa OK por CNPJ")
         return True
 
     # -----------------------------
     # 2. CONTÉM (🔥 NOVO - ESSENCIAL)
     # -----------------------------
     if e1_limpo in e2_limpo or e2_limpo in e1_limpo:
-        print("🏢 Empresa OK por inclusão")
+        print("Empresa OK por inclusao")
         return True
 
     # -----------------------------
@@ -117,9 +117,9 @@ def comparar_empresa(e1, e2):
     # -----------------------------
     score = fuzz.token_sort_ratio(e1_limpo, e2_limpo)
 
-    print(f"🏢 Limpo Guia: {e1_limpo}")
-    print(f"🏢 Limpo DCTF: {e2_limpo}")
-    print(f"🔍 Similaridade: {score}")
+    print(f"Limpo Guia: {e1_limpo}")
+    print(f"Limpo DCTF: {e2_limpo}")
+    print(f"Similaridade: {score}")
 
     return score >= 70
 
@@ -132,7 +132,7 @@ class INSSValidator:
 
     def analisar(self, guia_comprovante_pdf, dctfweb_pdf, competencia_esperada, dados_ia=None):
 
-        print("\n🚀 ================= INSS VALIDATOR =================")
+        print("\n================= INSS VALIDATOR =================")
 
         # OCR
         texto_guia = extrair_texto_inss(guia_comprovante_pdf) or ""
@@ -157,8 +157,8 @@ class INSSValidator:
         # -------------------------
         # EMPRESA (FINAL 🔥)
         # -------------------------
-        empresa_guia_nome = guia.get("empresa")
-        empresa_dctf_nome = dctf.get("empresa")
+        empresa_guia_nome = guia.get("empresa_nome") or guia.get("empresa")
+        empresa_dctf_nome = dctf.get("empresa_nome") or dctf.get("empresa")
 
         cnpj_guia = guia.get("cnpj")
         cnpj_dctf = dctf.get("cnpj")
@@ -193,12 +193,11 @@ class INSSValidator:
 
         declaracao_completa_ok = bool(dctf.get("declaracao_completa") or dctf.get("declaracao"))
         relatorio_debitos_ok = bool(dctf.get("relatorio_debitos") or dctf.get("resumo_debitos"))
-        relatorio_creditos_ok = bool(dctf.get("relatorio_creditos"))
+        relatorio_creditos_ok = True if dctf.get("relatorio_creditos") else "NA"
         recibo_dctf_ok = bool(dctf.get("recibo_entrega"))
         estrutura_dctf_ok = all([
             declaracao_completa_ok,
             relatorio_debitos_ok,
-            relatorio_creditos_ok,
             recibo_dctf_ok,
         ])
 
@@ -228,9 +227,6 @@ class INSSValidator:
 
         if not relatorio_debitos_ok:
             erros.append("DCTFWeb sem Relatório de Débitos")
-
-        if not relatorio_creditos_ok:
-            erros.append("DCTFWeb sem Relatório de Créditos")
 
         if not recibo_dctf_ok:
             erros.append("DCTFWeb sem Recibo")
